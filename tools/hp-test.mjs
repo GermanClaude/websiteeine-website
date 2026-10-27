@@ -127,12 +127,21 @@ async function logik() {
   check(!M.contested && M.owner === 'A' && M.scores.A === 15, `Gegner fällt: wieder gehalten (${M.scores.A})`);
   pA.position.set(0, 0, 30);
   run(1);
-  check(M.owner === null && log.notice.some((t) => /geräumt/.test(t)), `leer: neutral (${M.owner}), Hinweis „Stellung geräumt“`);
+  check(M.owner === 'A' && M.scores.A === 15, `leer: Nachlauf 3 s – Besitz bleibt (${M.owner}), aber keine Punkte (${M.scores.A})`);
+  run(2.5);
+  check(M.owner === null && log.notice.some((t) => /geräumt/.test(t)), `leer nach 3 s: neutral (${M.owner}), Hinweis „Stellung geräumt“`);
   pA.position.set(0, 0, 0.5);
-  run(16); // gesamt 37 s: Vorschau ab 35 s
+  run(13.5); // gesamt 37 s: Vorschau ab 35 s
+  check(M.owner === 'A' && log.score.filter((r) => r === 'hpcapture').length === 1, `wieder betreten: gehalten, aber kein zweites „eingenommen“ (${log.score.filter((r) => r === 'hpcapture').length}×)`);
   check(M.preview && M.objectives.length === 2 && M.objectives[1].next && M.objectives[1].id === '2' && log.notice.some((t) => /wandert in/.test(t)), `Vorschau nach ${45 - Math.round(M.rotLeft)} s: nächste Zone ${M.objectives[1] && M.objectives[1].id} gedimmt`);
-  const nxt = [0, 1, 2, 3, 4, 5].map((i) => M.objectiveFor(actor(`bot${i}`, i % 2 ? 'A' : 'B', 0, 20)).id);
-  check(nxt.includes('2') && nxt.includes('1'), `Bots in der Vorschau: ein Teil geht schon zur nächsten Zone (${nxt.join(',')})`);
+  // je Team 5 Bots: gleich viele gehen voraus (Rang im Team, nicht Zufallsname – Nachbesserung 26.10.)
+  const extra = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((i) => actor(`bot${i}x${i * 7}`, i % 2 ? 'A' : 'B', 0, 20 + i));
+  const keep = G.actors.slice();
+  G.actors = keep.filter((a) => !a.isBot).concat(extra);
+  const ahead = { A: 0, B: 0 };
+  for (const b of extra) if (M.objectiveFor(b).id === '2') ahead[b.team]++;
+  G.actors = keep;
+  check(ahead.A === 2 && ahead.B === 2, `Bots in der Vorschau: je Team gleich viele gehen zur nächsten Zone (A ${ahead.A}, B ${ahead.B} von 5)`);
   // Bollwerk: seit Wiedereintritt (21 s) + weitere – Medaille nach 30 s am Stück in diesem Leben
   run(8.5);
   check(M.idx === 1 && M.serial === 1 && !M.preview && M.objectives.length === 1 && M.owner === null && log.move === 1 && log.notice.some((t) => /Neue Stellung: Zwei/.test(t)), `Wechsel nach 45 s: Zone ${M.idx + 1}, neutral, Hinweis`);
@@ -170,6 +179,28 @@ async function logik() {
   M.scores.A = M.scoreLimit - 1;
   run(1.2);
   check(M.isOver && M.result && M.result.reason === 'score' && M.result.playerWon && M.result.playerSummary.counters.hpTime > 30, `Punkteziel ${M.scoreLimit}: Sieg, Haltezeit im Ergebnis ${Math.round(M.result && M.result.playerSummary.counters.hpTime)} s`);
+  // Nachbesserung 26.10. (Prüfung): Rein-/Raustreten am Rand ist keine Punkte-Farm
+  const G3 = { ...G, events: mkEvents(), time: { elapsed: 0 }, params: new URLSearchParams('mopt=wechsel:90') };
+  const fA = actor('player', 'A', 0, 30, { player: true, netId: 1 }), fB = actor('fB', 'B', 0, -35, { netId: 1002 });
+  G3.actors = [fA, fB]; G3.player = fA;
+  const fl = [];
+  G3.events.on('score', (e) => { if (e.actor === fA) fl.push(e.reason); });
+  const F = new HoldPointMode(G3, 'hp', { streaks: false });
+  F.start();
+  const run3 = (sec, dt = 0.1) => { for (let t = 0; t < sec - 1e-6; t += dt) { G3.time.elapsed += dt; F.update(dt); } };
+  for (let i = 0; i < 30; i++) { fA.position.set(4.9, 0, 0); run3(0.5); fA.position.set(5.2, 0, 0); run3(0.5); }
+  const caps = fl.filter((r) => r === 'hpcapture').length;
+  check(caps === 1 && F.scores.A === 15 && (fA.stats.score || 0) <= 400, `Randtanz 30 s (0,5 s drin/0,5 s draußen): ${caps}× „eingenommen“, Team ${F.scores.A}, Spieler ${fA.stats.score} Punkte`);
+  fA.position.set(0, 0, 30); fB.position.set(0.5, 0, 0); run3(4); // Gegner übernimmt
+  fA.position.set(0, 0, 0); fB.position.set(0, 0, -35); run3(4); // zurückerobert
+  check(F.owner === 'A' && fl.filter((r) => r === 'hpcapture').length === 2, `vom Gegner zurückerobert: wieder „eingenommen“ (${fl.filter((r) => r === 'hpcapture').length}×)`);
+  // Online gilt das Punkteziel des Raums, nicht die Modus-Option (sonst verstecktes Ziel abweichend von der Anzeige)
+  const G4 = { ...G, events: mkEvents(), match: { state: 'playing', mapId: 'testfeld', net: { modeOpts: { wechsel: 45, ziel: 150 } } } };
+  const N = new HoldPointMode(G4, 'hp', { streaks: false });
+  check(N.scoreLimit === 250 && N.hpCfg.rotate === 45, `online: Punkteziel ${N.scoreLimit} (Raum/Standard, Option ziel 150 zählt nicht), Wechsel ${N.hpCfg.rotate} s`);
+  const { normalizeSettings } = await import('../assets/js/game/net/index.js');
+  const rs = normalizeSettings({ mode: 'hp', map: 'werk', modeOpts: { ziel: 150, wechsel: 45 } });
+  check(!('ziel' in rs.modeOpts) && rs.modeOpts.wechsel === 45 && rs.scoreLimit == null, `Raum: Punkteziel-Option nicht in modeOpts (${JSON.stringify(rs.modeOpts)}), scoreLimit ${rs.scoreLimit}`);
 }
 
 /* ------------------------------------------------------------ welt */
@@ -341,8 +372,10 @@ async function spiel(browser) {
   // Spieler raus → neutral
   await p.evaluate(() => { const G = window.__game; const s = G.world.spawns[G.player.team][0]; G.debugApi.teleport(s.position.x, s.position.y + 0.3, s.position.z); window.__park(); });
   await gameWait(1.5);
+  const n1 = await p.evaluate(() => window.__game.mode.owner);
+  await gameWait(2.5); // Nachlauf 3 s (Nachbesserung 26.10.): erst danach neutral
   const n0 = await p.evaluate(() => window.__game.mode.owner);
-  check(n0 === null, `leere Zone: neutral (${n0})`);
+  check(n1 !== null && n0 === null, `leere Zone: Nachlauf hält den Besitz (${n1}), danach neutral (${n0})`);
   // Bollwerk: 30 s halten ohne zu fallen
   await into({ dx: 0.5, dz: 0.5 });
   const pre = await p.evaluate(() => window.__game.mode.rotLeft);

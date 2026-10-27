@@ -791,12 +791,15 @@ export function modeOptionValues(modeId, raw) {
   return out;
 }
 
-/** Nur die vom Standard abweichenden Werte (kurz für Speicher und Raum-Einstellungen; {} = alles Standard). */
-export function modeOptionDiff(modeId, raw) {
+/**
+ * Nur die vom Standard abweichenden Werte (kurz für Speicher und Raum-Einstellungen; {} = alles Standard).
+ * skipLimits: ohne Optionen mit limit (Raum: dort gilt das allgemeine Punkteziel des Raum-Menüs, Prüfung 26.10.).
+ */
+export function modeOptionDiff(modeId, raw, { skipLimits = false } = {}) {
   const m = MODES[modeId];
   const all = modeOptionValues(modeId, raw);
   const out = {};
-  for (const o of (m && m.options) || []) if (all[o.id] !== o.def) out[o.id] = all[o.id];
+  for (const o of (m && m.options) || []) if (!(skipLimits && o.limit) && all[o.id] !== o.def) out[o.id] = all[o.id];
   return out;
 }
 

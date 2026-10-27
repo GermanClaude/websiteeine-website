@@ -8,12 +8,14 @@
 //        Host steht allein in der Zone → gehalten von seinem Team, Punkte steigen, beim Client dasselbe (Abbild über
 //        netExtra hp/hh) samt Haltezeit des Hosts in der Tabelle; Host erzwingt Vorschau und Wechsel → Client zeigt die
 //        nächste Zone gedimmt, dann dieselbe neue Zone mit Hinweis; keine Verstöße.
-// Aufruf: node tools/modes-online-test.mjs [--only=inf,gun,hp]   (Server NP_BASE, Relay node tools/nostr-relay.mjs 7777)
+// Aufruf: node tools/modes-online-test.mjs [--only=inf,gun,hp] [--map=werk]   (Server NP_BASE, Relay node tools/nostr-relay.mjs 7777)
+//   --map (27.10.): Karte für inf/gun (Standard Werk); --map=bibliothek braucht weniger Speicher (geteilter Prüfrechner).
 import { chromium, BASE, GL_ARGS } from './pw.mjs';
 
 const opt = Object.fromEntries(process.argv.slice(2).map((a) => { const [k, ...v] = a.replace(/^--/, '').split('='); return [k, v.length ? v.join('=') : true]; }));
 const ONLY = opt.only ? String(opt.only).split(',') : ['inf', 'gun', 'hp'];
 const RELAY = process.env.NP_RELAY || 'ws://localhost:7777';
+const MAP = opt.map || 'werk';
 const T0 = Date.now();
 const ts = () => `${((Date.now() - T0) / 1000).toFixed(0).padStart(4)} s`;
 let fail = 0, count = 0;
@@ -23,6 +25,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 async function until(p, fn, arg, ms = 60000, every = 500) {
   const t0 = Date.now();
   for (;;) {
+    if (p.__crashed) return null; // 26.10.: Seite abgestürzt (z. B. Speichergrenze) → sofort scheitern statt endlos warten
     let v = null;
     // 26.10.: Abfrage mit Frist – unter Last blockiert der Hauptfaden einer Seite minutenlang (Shader-Bau im Software-GL)
     try { v = await Promise.race([p.evaluate(fn, arg), sleep(30000).then(() => null)]); } catch { v = null; }
@@ -46,6 +49,7 @@ async function session(modeId, run, extra = {}) {
     ctxs.push(ctx);
     const p = await ctx.newPage();
     p.on('pageerror', (e) => errors.push(`${name}: ${e.message}`));
+    p.on('crash', () => { p.__crashed = true; errors.push(`${name}: Seite abgestürzt`); info(`${name}: Seite abgestürzt (Speicher?)`); });
     await p.goto(`${BASE}spielen.html?relays=${encodeURIComponent(RELAY)}&quality=low`);
     await p.waitForFunction(() => window.__game && window.__game.net && window.__game.match.state === 'lobby', null, { timeout: 300000 });
     await p.evaluate((n) => window.__game.settings.set('playerName', n), name);
@@ -54,7 +58,7 @@ async function session(modeId, run, extra = {}) {
   try {
     const host = await open('Host');
     const cl = await open('Client', browser2);
-    const code = await host.evaluate(([m, x]) => window.__game.net.host({ name: 'Modi', mode: m, map: 'werk', maxPlayers: 4, teamSize: 3, pvp: 'pvp', botFill: true, difficulty: 'rekrut', weather: 'standard', time: 'standard', style: 'arcade', ...x }).then((r) => r.code, (e) => 'FEHLER:' + e.code), [modeId, extra]);
+    const code = await host.evaluate(([m, x]) => window.__game.net.host({ name: 'Modi', mode: m, map: 'werk', maxPlayers: 4, teamSize: 3, pvp: 'pvp', botFill: true, difficulty: 'rekrut', weather: 'standard', time: 'standard', style: 'arcade', ...x }).then((r) => r.code, (e) => 'FEHLER:' + e.code), [modeId, { map: MAP, ...extra }]);
     const mode = await host.evaluate(() => window.__game.net.room && window.__game.net.room.settings.mode);
     if (!check(/^[A-Z2-9]{6}$/.test(code) && mode === modeId, `Raum ${code}, Modus ${mode}`)) return;
     let j = await cl.evaluate((c) => window.__game.net.join(c, { name: 'Bert' }).then((r) => ({ ok: true, id: r.id }), (e) => ({ ok: false, code: e.code })), code);
@@ -141,7 +145,8 @@ async function gungame(host, cl, cid) {
 }
 
 async function stellung(host, cl) {
-  const o = await Promise.all([host, cl].map((p) => p.evaluate(() => { const M = window.__game.mode; return { opt: M.options.wechsel, n: M.zones.length, names: M.zones.map((z) => z.name).join(','), replica: M.replica }; })));
+  const o = await Promise.all([host, cl].map((p) => until(p, () => { const M = window.__game.mode; return { opt: M.options.wechsel, n: M.zones.length, names: M.zones.map((z) => z.name).join(','), replica: M.replica }; }, null, 120000)));
+  if (!check(o[0] && o[1], 'Host und Client antworten')) return;
   check(o[0].opt === 45 && o[1].opt === 45 && o[1].replica && !o[0].replica, `Modus-Einstellung „Zonenwechsel 45 s“ bei Host und Client (${o[0].opt}/${o[1].opt})`);
   check(o[0].n >= 2 && o[0].names === o[1].names, `gleiche Zonen (${o[0].names})`);
   await cl.evaluate(() => { window.__hpN = []; window.__game.events.on('mode:notice', (e) => window.__hpN.push(e.text)); });

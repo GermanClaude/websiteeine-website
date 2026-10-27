@@ -1,7 +1,9 @@
 // Schnelle Match-Simulation ohne Rendern (Systeme direkt takten), danach Aufnahmen.
 // Ergebnisse: tools/out/sim-<name>.json und Aufnahmen tools/out/sim-<name>-<i>.png
-// node tools/sim.mjs --map=hafen --mode=tdm --seconds=120 [--dt=0.0333] [--diff=regulaer] [--shots=3] [--mobile] [--name=x] [--extra="allies=5&enemies=6"] [--player=god|mortal|center]
+// node tools/sim.mjs --map=hafen --mode=tdm --seconds=120 [--dt=0.0333] [--diff=regulaer] [--shots=3] [--mobile] [--name=x] [--extra="allies=5&enemies=6"] [--player=god|mortal|center|off]
 // Der Spieler ist standardmäßig unverwundbar (debugApi.godMode → Match ungewertet, keine EP). Server: NP_BASE (Standard :8765).
+// --player=off (26.10.): Spieler als Zuschauer weit außerhalb der Karte, ohne Takt – echte Bot-gegen-Bot-Messung (Balance),
+// sonst bindet der unverwundbare Spieler am Start Gegner und verzerrt Modus-Wertungen zugunsten seines Teams.
 import { chromium, devices, BASE, GL_ARGS } from './pw.mjs';
 import { writeFileSync, mkdirSync } from 'node:fs';
 mkdirSync('tools/out', { recursive: true });
@@ -41,6 +43,7 @@ await page.evaluate(async (god) => {
   G.events.on('grenade:throw', (e) => { const s = window.__sim; if (s && e && e.actor && e.actor.isBot) s.nades[e.type || '?'] = (s.nades[e.type || '?'] || 0) + 1; });
   for (const ev of ['gadget:heal', 'spot', 'armor:plate', 'player:stance']) G.events.on(ev, (e) => { const s = window.__sim; if (s && e && e.actor && e.actor.isBot && (ev !== 'armor:plate' || e.phase === 'end')) s.ev[ev] = (s.ev[ev] || 0) + 1; });
   G.events.on('actor:spawn', ({ actor }) => {
+    if (actor === G.player && window.__simOff) { G.player.body.teleport(G.player.position.clone().set(5000, 300, 5000)); return; }
     if (actor !== G.player || !window.__simCenter) return;
     const n = G.world.nav.nearest(window.__simCenter);
     if (n) { G.player.body.teleport(n.position); G.player.yaw = Math.random() * 6.28; }
@@ -66,7 +69,7 @@ await page.evaluate(async (god) => {
         }
         G.time.dt = dt; G.time.elapsed += dt; G.time.real += dt; G.time.frame++;
         try {
-          G.player.update(dt);
+          if (!window.__simOff) G.player.update(dt);
           const tb = performance.now();
           G.bots.update(dt);
           const mb = performance.now() - tb;
@@ -118,6 +121,11 @@ await page.evaluate(async (god) => {
     },
   };
 }, opt.player !== 'mortal');
+if (opt.player === 'off') await page.evaluate(() => {
+  const G = window.__game;
+  window.__simOff = true;
+  G.player.body.teleport(G.player.position.clone().set(5000, 300, 5000));
+});
 if (opt.player === 'center') await page.evaluate(async () => {
   const G = window.__game;
   const T = await import('./assets/js/game/bots/ai/tactics.js');

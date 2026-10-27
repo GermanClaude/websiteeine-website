@@ -185,8 +185,9 @@ export function normalizeSettings(partial = {}, base = DEFAULT_ROOM, hostName = 
     tankEra: ['karte', 'modern', 'wk2', 'wk1'].includes(pick('tankEra')) ? pick('tankEra') : 'karte',
     killAmmo: pick('killAmmo') !== false,
     cheatMenu: pick('cheatMenu') !== false,
-    // Modus-Einstellungen (MODES[id].options, B6): nur Abweichungen vom Standard; Moduswechsel ohne neue → Standard
-    modeOpts: modeOptionDiff(mode, p.mode !== undefined && p.mode !== b.mode && p.modeOpts === undefined ? {} : pick('modeOpts')),
+    // Modus-Einstellungen (MODES[id].options, B6): nur Abweichungen vom Standard; Moduswechsel ohne neue → Standard.
+    // Optionen mit limit (Stellung: Punkteziel) bleiben draußen – im Raum gilt scoreLimit, das Menü zeigt nur das (26.10.)
+    modeOpts: modeOptionDiff(mode, p.mode !== undefined && p.mode !== b.mode && p.modeOpts === undefined ? {} : pick('modeOpts'), { skipLimits: true }),
   };
 }
 

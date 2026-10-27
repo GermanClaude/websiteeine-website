@@ -1,9 +1,11 @@
 // NULLPUNKT — Stellung (hp, 26.10., Plan M1 / modi-neu §3): Herrschaft mit genau einer aktiven Zone, die in fester
 // Reihenfolge wandert (world.objectives.hp aus world/maps/modus-ziele.js; Karten ohne Daten: Herrschaftsflaggen B → A → C).
 // Keine Einnahmezeit: Wer allein in der Zone steht, hält sie (pointsPerSecond Teampunkte je Sekunde); stehen beide Teams
-// drin, ist sie umkämpft (keine Punkte, der Besitz bleibt stehen); steht niemand drin, ist sie neutral. preview s vor dem
+// drin, ist sie umkämpft (keine Punkte, der Besitz bleibt stehen); steht niemand drin, wird sie nach EMPTY_GRACE s neutral
+// (Nachbesserung 26.10.: sonst zählte jedes Hin- und Hertreten am Rand als neue Einnahme). preview s vor dem
 // Wechsel erscheint die nächste Zone gedimmt (objectives[1], next: true) auf Karte, Minikarte und HUD.
-// Persönlich: „Stellung gehalten“ je holdChunk s in der gehaltenen Zone, „Stellung eingenommen“ für den ersten des Teams,
+// Persönlich: „Stellung gehalten“ je holdChunk s in der gehaltenen Zone, „Stellung eingenommen“ für den ersten des Teams
+// (je Zone und Team nur beim ersten Halten seit dem Wechsel oder bei Übernahme vom Gegner – keine Punkte-Farm am Rand),
 // Abschüsse an der Zone (verteidigt/angegriffen); Medaillen Bollwerk, Stellungskämpfer, Vorhut; Zähler hpTime
 // (Herausforderung, Endbildschirm, Spalte „Haltezeit“). Einstellungen (B6): Wechsel 45/60/90 s, Punkteziel 150/250/350.
 // Online rechnet der Host; Clients bekommen den Zustand über netExtra (hp, hh) – keine eigene Nachricht, kein NET_VERSION.
@@ -13,6 +15,7 @@ import { modeOptionValues, parseModeOptions } from '../../shared/modes.data.js';
 import { DomMode } from './dom.js';
 
 const NOTICE_GAP = 4; // s zwischen zwei „umkämpft“-Hinweisen
+const EMPTY_GRACE = 3; // s: so lange behält eine leere Zone ihren Besitzer (Nachlauf, keine Hinweis-Flut am Rand)
 
 export class HoldPointMode extends DomMode {
   constructor(G, modeId, opts = {}) {
@@ -23,9 +26,11 @@ export class HoldPointMode extends DomMode {
       rotate: Number(this.options.wechsel) || o.rotate || 60, preview: o.preview ?? 10, pps: o.pointsPerSecond || 1,
       chunk: o.holdChunk || 5, clear: o.spawnClear ?? 25, bulwark: o.bulwark || 30, zoneKills: o.zoneKills || 5, nextShare: o.nextShare ?? 0.34,
     };
-    // Punkteziel: ausdrücklich (URL/Raum-Einstellung) vor der Modus-Option
+    // Punkteziel: ausdrücklich (URL/Raum-Einstellung) vor der Modus-Option; online gilt nur das Punkteziel des Raums
+    // (Raum-Menü zeigt und regelt es, net/index.js normalizeSettings nimmt die Option nicht in modeOpts auf)
     const explicit = Number(opts.scoreLimit ?? opts.score);
-    if (!(Number.isFinite(explicit) && explicit > 0) && Number(this.options.ziel) > 0) this.scoreLimit = Number(this.options.ziel);
+    const online = !!(G.match && G.match.net);
+    if (!online && !(Number.isFinite(explicit) && explicit > 0) && Number(this.options.ziel) > 0) this.scoreLimit = Number(this.options.ziel);
     this.zones = [];
     this.idx = 0;
     this.serial = 0; // Zahl der Wechsel (Netz: Abbild erkennt einen Wechsel auch bei gleicher Zone)
@@ -42,6 +47,8 @@ export class HoldPointMode extends DomMode {
     this._firstIn = null;
     this._vanguardDone = false;
     this._contestNoteAt = -1e9;
+    this._emptyFor = 0;
+    this._captured = { A: false, B: false }; // „eingenommen“ schon vergeben (je Team seit dem letzten Wechsel)
   }
 
   /** Einstellungen: online vom Host (cfg.net.modeOpts), offline aus der Lobby (settings.modeOptions), Prüfwerkzeuge ?mopt=. */
@@ -92,6 +99,8 @@ export class HoldPointMode extends DomMode {
     this._entered.clear();
     this._firstIn = null;
     this._vanguardDone = false;
+    this._emptyFor = 0;
+    this._captured = { A: false, B: false };
     for (const h of this._hold.values()) h.chunk = 0;
   }
 
@@ -159,17 +168,19 @@ export class HoldPointMode extends DomMode {
       changed = true;
       if (contested) this._contestNote();
     }
-    // Besitz: allein drin = gehalten, niemand = neutral, beide = bleibt stehen
-    if (!contested && team !== this.owner) {
+    // Besitz: allein drin = gehalten, beide = bleibt stehen, niemand = nach EMPTY_GRACE s neutral
+    this._emptyFor = A || B ? 0 : this._emptyFor + dt;
+    const want = contested ? this.owner : team || (this._emptyFor >= EMPTY_GRACE - 1e-6 ? null : this.owner);
+    if (want !== this.owner) {
       const prev = this.owner;
-      this.owner = team;
+      this.owner = want;
       changed = true;
       this._syncActive();
-      if (team) this._taken(team, prev, f);
+      if (want) this._taken(want, prev, f);
       else this._left(prev, f);
     }
-    // Punkte: 1 je Sekunde Alleinbesitz; persönlich „Stellung gehalten“
-    if (this.owner && !contested) {
+    // Punkte: 1 je Sekunde Alleinbesitz (nur wer drinsteht – im Nachlauf keine); persönlich „Stellung gehalten“
+    if (this.owner && team === this.owner) {
       const t = this.owner;
       if (this._accTeam !== t) { this._accTeam = t; this._acc = 0; }
       this._acc += dt * C.pps;
@@ -206,11 +217,14 @@ export class HoldPointMode extends DomMode {
 
   /** Team hält die Zone allein (vorher neutral, umkämpft oder beim Gegner). */
   _taken(team, prev, f) {
-    // „Stellung eingenommen“: wer im Team zuerst drin war
+    // „Stellung eingenommen“: wer im Team zuerst drin war – nur beim ersten Halten seit dem Wechsel oder vom Gegner
+    // übernommen (nach Räumen und Wiederbetreten nicht noch einmal: sonst Punkte-Farm am Rand, Prüfung 26.10.)
+    const fresh = !this._captured[team] || (prev && prev !== team);
+    this._captured[team] = true;
     let first = null;
     let t0 = Infinity;
     for (const a of f.present) if (a.team === team && (this._entered.get(a) ?? Infinity) < t0) { t0 = this._entered.get(a); first = a; }
-    if (first) { this.award(first, 'hpcapture'); this.count(first, 'hpCaptures'); }
+    if (first && fresh) { this.award(first, 'hpcapture'); this.count(first, 'hpCaptures'); }
     // Vorhut: der Erste in einer neuen Zone, wenn sein Team sie als Erstes hält
     if (!this._vanguardDone) {
       this._vanguardDone = true;
@@ -298,20 +312,42 @@ export class HoldPointMode extends DomMode {
 
   /* ------------------------------------------------------------ Bots und Wiedereinstieg */
 
+  /**
+   * Rang des Bots in seinem Team nach share(…, salt) (0 … n−1) – damit beide Teams gleich viele Vorausgeher bzw.
+   * Sicherer stellen (Nachbesserung 26.10.: der Anteil hing am Zufallsnamen, ein Team hatte oft 0, das andere 3).
+   */
+  _teamRank(bot, salt) {
+    const me = share(bot, salt);
+    let i = 0;
+    let n = 1; // der Bot selbst
+    for (const a of this.G.actors) {
+      if (a === bot || !a.isBot || a.team !== bot.team) continue;
+      n++;
+      const o = share(a, salt);
+      if (o < me || (o === me && String(a.id) < String(bot.id))) i++;
+    }
+    return { i, n };
+  }
+
+  _inShare(bot, frac, salt = 0) {
+    const r = this._teamRank(bot, salt);
+    return r.i < Math.round(r.n * frac);
+  }
+
   /** Aktive Zone; in der Vorschau setzt ein fester Teil jedes Teams schon zur nächsten um. */
   objectiveFor(bot) {
     if (!bot || (bot.team !== 'A' && bot.team !== 'B') || !this.objectives.length) return null;
     const now = this.G.time.elapsed;
     let f = this.objectives[0];
     const nx = this.objectives[1];
-    if (nx && nx.next && share(bot) < this.hpCfg.nextShare) f = nx;
+    if (nx && nx.next && this._inShare(bot, this.hpCfg.nextShare)) f = nx;
     const cur = this._assign.get(bot);
     if (cur && cur.id === f.id && cur.serial === this.serial && now < cur.until) return { id: f.id, position: cur.point, radius: f.radius, kind: cur.kind };
     const ang = Math.random() * Math.PI * 2;
     const r = Math.random() * f.radius * 0.6;
     const point = f.position.clone().add(new THREE.Vector3(Math.cos(ang) * r, 0, Math.sin(ang) * r));
     // Halten heißt drinstehen: fast alle „einnehmen“ (Deckung im Kreis), ein Viertel der Halter sichert von außen
-    const kind = !f.next && this.owner === bot.team && !this.contested && share(bot, 7) < 0.25 ? 'defend' : 'capture';
+    const kind = !f.next && this.owner === bot.team && !this.contested && this._inShare(bot, 0.25, 7) ? 'defend' : 'capture';
     this._assign.set(bot, { id: f.id, point, kind, serial: this.serial, until: now + 6 + Math.random() * 5 });
     return { id: f.id, position: point, radius: f.radius, kind };
   }
