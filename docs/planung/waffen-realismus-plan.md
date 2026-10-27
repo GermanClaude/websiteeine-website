@@ -338,4 +338,7 @@ Kosten P-9: ≈ 72 000 Dreiecke (Ego), 328 (Bots), Bau ≈ 0,5 s + Texturen ≈ 
   Drehteile mit Schienen, Distanzfelder für Schaft, Vorderschaft, Basküle; Teile barrels/toplever/extractor/shellR/shellL).
   Neuer Nachladestil **Kipplauf** als Baustein `anim/break.js` (Ego) + Bot-Rig 'break' (für Stummel/Hammer wiederverwendbar),
   zwei Mündungen (muzzle/muzzle2), `burstRpm` (Doppelschuss), `attSlots`, `botWeight`. Messung: Ego hoch 184 k Dreiecke / 22 Meshes (Bau 2,0 s),
-  niedrig/mittel 73 k / 19 (0,9 s), Handy 40 k / 19 (0,6 s), Bots 176 / 2. Fotovergleich (Bereich Basküle–Vorderschaft): Foto→Modell 0,7 mm im Mittel.
+  niedrig/mittel 73 k / 19 (0,9 s), Handy 40 k / 19 (0,6 s), Bots 176 / 4. Fotovergleich (Bereich Basküle–Vorderschaft): Foto→Modell 0,7 mm im Mittel.
+  Nachbesserung nach der Prüfung: Bot-Fassung hält die Läufe als eigenes Netz (`meta.botParts` → `builder._buildMerged`, je Teil
+  Metall + Matt; ohne `botParts` bitgleich wie vorher), sonst klappte das Bot-Rig 'break' eine leere Gruppe; der Laser hängt am
+  Teil seines Ankers (`attach.js`, Vorderschaft = 'barrels') und klappt mit. `tools/weapon-parts-test.mjs` prüft beides.

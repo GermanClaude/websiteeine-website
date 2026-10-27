@@ -72,7 +72,8 @@ export function zwilling(b) {
   b.anchor('chamberR', R.BX0, AX, UB, { part: 'barrels' });
   b.anchor('chamberL', -R.BX0, AX, UB, { part: 'barrels' });
   b.anchor('shellPort', 0, AX, UB - 0.01, { part: 'barrels' });
-  b.meta = { sight: 'iron', axis: AX, kind: 'shotgun', hidden: ['shellR', 'shellL'], breakOpen: R.OPEN };
+  // botParts: Bot-Stufe hält die Läufe als eigenes Netz (builder._buildMerged), sonst klappt das Bot-Rig 'break' eine leere Gruppe
+  b.meta = { sight: 'iron', axis: AX, kind: 'shotgun', hidden: ['shellR', 'shellL'], breakOpen: R.OPEN, botParts: ['barrels'] };
 }
 
 // ---------------------------------------------------------------- Läufe (Drehteile, Schienen, Kopfstück)

@@ -2,6 +2,8 @@
 // Trommelmagazin unter einem Kastenmagazin). Baut jedes Modell (Ego-Detailstufe) ohne Aufsätze und mit jedem einzelnen
 // passenden Aufsatz, verbindet Meshes, deren Hüllquader sich (mit 1,5 mm Spiel) berühren, und meldet Gruppen, die nicht
 // am größten Teil hängen. Hüllquader sind großzügig: was hier auffällt, schwebt sicher; nicht jeder Fehler fällt auf.
+// Kipplauf (26.10.): bei Modellen mit Teil 'barrels' darf kein festes Teil nur an den Läufen hängen (Aufsätze am Vorderschaft
+// müssen mitklappen); die Bot-Fassung muss Netze unter 'barrels' haben (sonst klappt das Bot-Rig 'break' eine leere Gruppe).
 // Voraussetzung: Server auf 8765. Aufruf: node tools/weapon-parts-test.mjs [--verbose]
 import { chromium, BASE, GL_ARGS } from './pw.mjs';
 
@@ -27,6 +29,17 @@ const res = await page.evaluate(async () => {
     let root;
     try { root = M.createWeaponModel(key, { lod: 'first', att }); } catch (e) { out.push({ key, att, error: String(e.message || e) }); return; }
     builds++;
+    const barrels = root.getObjectByName('barrels');
+    loose(root, key, att, barrels);
+    if (barrels) {
+      let third = null;
+      try { third = M.createWeaponModel(key, { lod: 'third', att }); } catch (e) { out.push({ key, att, error: 'Bot-Fassung: ' + (e.message || e) }); return; }
+      let n = 0;
+      third.getObjectByName('barrels')?.traverse((o) => { if (o.isMesh) n++; });
+      if (!n) out.push({ key, att: { ...att, lod: 'third' }, msg: 'Bot-Fassung: keine Netze unter barrels' });
+    }
+  };
+  const loose = (root, key, att, mover = null) => {
     root.updateMatrixWorld(true);
     const items = [];
     root.traverse((o) => {
@@ -38,6 +51,22 @@ const res = await page.evaluate(async () => {
       if (box.isEmpty()) return;
       items.push({ o, box: box.expandByScalar(GAP), name: o.name || (o.material && o.material.name) || '?', parent: o.parent && o.parent.name });
     });
+    // Kipplauf: ein festes Teil, das nur Teile der Läufe berührt, bliebe beim Öffnen frei in der Luft stehen (offen geprüft
+    // greift der Hüllquader-Zusammenhang nicht – die schrägen Läufe haben einen riesigen Hüllquader)
+    if (mover) {
+      const inM = (o) => { for (let q = o; q; q = q.parent) if (q === mover) return true; return false; };
+      const fixed = items.filter((it) => !inM(it.o)), moving = items.filter((it) => inM(it.o));
+      const u2 = fixed.map((_, i) => i);
+      const f2 = (i) => (u2[i] === i ? i : (u2[i] = f2(u2[i])));
+      for (let i = 0; i < fixed.length; i++) for (let j = i + 1; j < fixed.length; j++) if (fixed[i].box.intersectsBox(fixed[j].box)) u2[f2(i)] = f2(j);
+      const gs = new Map();
+      fixed.forEach((it, i) => { const r = f2(i); if (!gs.has(r)) gs.set(r, []); gs.get(r).push(it); });
+      const vol = (g) => g.reduce((v, it) => { const s = it.box.getSize(new THREE.Vector3()); return v + s.x * s.y * s.z; }, 0);
+      const fl = [...gs.values()].sort((a, b) => vol(b) - vol(a));
+      for (const g of fl.slice(1)) {
+        if (g.some((it) => moving.some((m) => m.box.intersectsBox(it.box)))) out.push({ key, att, msg: `${[...new Set(g.map((it) => `${it.name}@${it.parent || ''}`))].join(' | ')} hängt nur an '${mover.name}', gehört aber nicht dazu (schwebt bei offenen Läufen)` });
+      }
+    }
     // Zusammenhang über berührende Hüllquader (Union-Find)
     const up = items.map((_, i) => i);
     const find = (i) => (up[i] === i ? i : (up[i] = find(up[i])));
@@ -72,6 +101,7 @@ console.log(`${res.models} Modelle, ${res.builds} Bauvarianten geprüft`);
 for (const f of real) {
   const att = f.att ? Object.entries(f.att).map(([k, v]) => `${k}:${v}`).join(',') : 'Werk';
   if (f.error) console.log(`FEHL ${f.key} [${att}] Baufehler: ${f.error}`);
+  else if (f.msg) console.log(`FEHL ${f.key} [${att}] ${f.msg}`);
   else console.log(`FEHL ${f.key} [${att}] ${f.n} Teil(e) frei: ${f.names.join(' | ')} bei ${f.at.join('/')} (Größe ${f.size.join('×')})`);
 }
 if (errors.length) console.log(`Seitenfehler: ${errors.slice(0, 3).join(' | ')}`);

@@ -64,15 +64,18 @@ export function attachToBuilder(b, att, mount) {
     lh.data = { style: 'under', w: r + 0.004, h: r };
   }
   if (att.taktisch === 'laser') {
+    // Kipplauf (26.10., Zwilling): sitzt der Anker in einem beweglichen Teil (Läufe + Vorderschaft = 'barrels'), hängt der Laser
+    // an diesem Teil und klappt beim Nachladen/Inspizieren mit auf – an der Basküle schwebte er sonst frei in der Luft
+    const onPart = (a) => (a && a.part && a.part !== 'static' ? { part: a.part } : {});
     if (style === 'pistol' || !under) {
-      const v = (mz ? mz.pos.y : 0.03) - 0.03, u = muzzleU - (style === 'pistol' ? 0.045 : 0.14);
-      b.box('polymer', 0.022, 0.018, 0.04, 0, v, u, { c: 0.003 });
-      b.circle('glowRed', 0.0028, 0, v + 0.002, u + 0.0205);
+      const v = (mz ? mz.pos.y : 0.03) - 0.03, u = muzzleU - (style === 'pistol' ? 0.045 : 0.14), P = onPart(mz);
+      b.box('polymer', 0.022, 0.018, 0.04, 0, v, u, { ...P, c: 0.003 });
+      b.circle('glowRed', 0.0028, 0, v + 0.002, u + 0.0205, P);
     } else {
-      const x = x0 + hw + 0.011, v = vb + (lh.data.h ?? lh.data.r ?? 0.024), u = Math.min(uL + 0.1, muzzleU - 0.06);
-      b.box('polymer', 0.017, 0.02, 0.044, x, v, u, { c: 0.003 });
-      b.box('alu', 0.006, 0.012, 0.03, x - 0.0105, v, u, { c: 0.001 });
-      b.circle('glowRed', 0.003, x, v + 0.003, u + 0.0225);
+      const x = x0 + hw + 0.011, v = vb + (lh.data.h ?? lh.data.r ?? 0.024), u = Math.min(uL + 0.1, muzzleU - 0.06), P = onPart(lh);
+      b.box('polymer', 0.017, 0.02, 0.044, x, v, u, { ...P, c: 0.003 });
+      b.box('alu', 0.006, 0.012, 0.03, x - 0.0105, v, u, { ...P, c: 0.001 });
+      b.circle('glowRed', 0.003, x, v + 0.003, u + 0.0225, P);
     }
   }
 }

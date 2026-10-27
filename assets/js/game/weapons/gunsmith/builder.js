@@ -518,7 +518,7 @@ export class Builder {
 }
 
 Builder.prototype._buildMerged = function (key) {
-  // Bot-Detailstufe: alle Teile (außer Magazin-Baugruppe) in zwei Vertex-Farb-Meshes (Metall/Matt)
+  // Bot-Detailstufe: alle Teile (außer Magazin-Baugruppe und meta.botParts) in zwei Vertex-Farb-Meshes (Metall/Matt)
   const root = new THREE.Group();
   root.name = `waffe:${key}:${this.lod}`;
   const objs = new Map();
@@ -538,22 +538,25 @@ Builder.prototype._buildMerged = function (key) {
   };
   for (const p of this.parts.values()) makeObj(p);
   root.updateMatrixWorld(true);
-  const inMag = (p) => { for (let q = p; q; q = q.parent ? this.parts.get(q.parent) : null) if (q.name === 'mag') return true; return false; };
-  const magObj = objs.get('mag');
-  const magInv = magObj ? magObj.matrixWorld.clone().invert() : null;
+  // Eigene Baugruppen: Magazin und die Teile, die ein Bot-Rig sichtbar bewegt (meta.botParts, z. B. Kipplauf 'barrels', 26.10.) –
+  // je ein Metall-/Matt-Netz unter der Teilgruppe; alles andere verschmilzt in den Ursprung (ohne botParts wie bisher)
+  const own = ['mag', ...(this.meta.botParts || [])].filter((n) => objs.has(n));
+  const ownOf = (p) => { for (let q = p; q; q = q.parent ? this.parts.get(q.parent) : null) if (own.includes(q.name)) return q.name; return 'root'; };
+  const inv = new Map(own.map((n) => [n, objs.get(n).matrixWorld.clone().invert()]));
   const buckets = { root: { metal: [], matte: [] }, mag: { metal: [], matte: [] } };
+  for (const n of own) buckets[n] ??= { metal: [], matte: [] };
   const m = new THREE.Matrix4();
   for (const p of this.parts.values()) {
-    const obj = objs.get(p.name), mg = magObj && inMag(p);
+    const obj = objs.get(p.name), where = ownOf(p);
     m.copy(obj.matrixWorld);
-    if (mg) m.premultiply(magInv);
+    if (where !== 'root') m.premultiply(inv.get(where));
     for (const it of p.items) {
       const g = it.geo;
       g.applyMatrix4(m);
       const li = lodInfo(it.mat), n = g.attributes.position.count, col = new Float32Array(n * 3);
       for (let i = 0; i < n; i++) li.color.toArray(col, i * 3);
       g.setAttribute('color', new THREE.BufferAttribute(col, 3));
-      buckets[mg ? 'mag' : 'root'][li.metal ? 'metal' : 'matte'].push(g);
+      buckets[where][li.metal ? 'metal' : 'matte'].push(g);
     }
   }
   let tris = 0, meshes = 0;
@@ -566,7 +569,7 @@ Builder.prototype._buildMerged = function (key) {
       const mesh = new THREE.Mesh(geo, getMat(kind === 'metal' ? 'lodMetal' : 'lodMatte'));
       mesh.name = `${where}:${kind}`;
       mesh.castShadow = true; mesh.receiveShadow = false;
-      (where === 'mag' ? magObj : root).add(mesh);
+      (where === 'root' ? root : objs.get(where)).add(mesh);
       tris += geo.attributes.position.count / 3; meshes++;
     }
   }
