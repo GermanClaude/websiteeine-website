@@ -15,7 +15,15 @@ const icon = (body) =>
 
 /* ------------------------------------------------------------------ Modi */
 
-export const MODE_ORDER = ['tdm', 'ult', 'dom', 'cq', 'kc', 'ffa', 'inf', 'messer', 'gun', 'training'];
+export const MODE_ORDER = ['tdm', 'ult', 'dom', 'hp', 'cq', 'kc', 'ffa', 'inf', 'messer', 'gun', 'training'];
+
+/*
+ * Modus-Daten B6 (26.10.): online: true = im Mehrspieler wählbar (eine Quelle für net/index.js und ui/net-menus.js,
+ * ONLINE_MODE_IDS), onlineVehicles: true = online mit Fahrzeugen (VEHICLE_MODE_IDS), maxTeam = Obergrenze der Teamgröße
+ * im Raum (ohne: 16). options = Modus-Einstellungen [{ id, label, values, def, suffix?, hint?, limit? }] – Lobby und
+ * Raum-Menü bauen die Regler daraus (ui/mode-options.js); limit: 'scoreLimit' = entspricht dem allgemeinen Punkteziel
+ * (das Raum-Menü hat dafür schon seinen Regler und lässt die Option weg). Werte liest der Modus über modeOptionValues().
+ */
 
 export const MODES = {
   tdm: {
@@ -44,6 +52,8 @@ export const MODES = {
     respawnDelay: 3,
     streaks: true,
     lethals: true,
+    online: true,
+    onlineVehicles: true,
     recommendedMaps: ['hafen', 'altstadt', 'werk'],
     icon: icon('<path d="M3 6l6.5 6L3 18"/><path d="M21 6l-6.5 6 6.5 6"/><path d="M12 4v3M12 17v3"/>'),
   },
@@ -75,6 +85,8 @@ export const MODES = {
     respawnDelay: 2,
     streaks: true,
     lethals: true,
+    online: true,
+    onlineVehicles: true,
     recommendedMaps: ['altstadt', 'werk', 'hafen'],
     icon: icon('<circle cx="12" cy="12" r="7"/><path d="M12 2.5v5M12 16.5v5M2.5 12h5M16.5 12h5"/><circle cx="12" cy="12" r="1"/>'),
   },
@@ -116,8 +128,53 @@ export const MODES = {
       tickInterval: 4,
       pointsPerTick: 1,
     },
+    online: true,
+    onlineVehicles: true,
     recommendedMaps: ['werk', 'hafen', 'altstadt'],
     icon: icon('<path d="M6 21V3.5"/><path d="M6 4.5h11l-2.5 3.75L17 12H6"/>'),
+  },
+
+  // 26.10. (Nutzer: „noch mehr Modi“): Stellung – eine wandernde Zone (Plan M1, modi-neu §3). Zonen je Karte in
+  // world/maps/modus-ziele.js; Logik game/modes/hp.js (Herrschaft mit einer aktiven Zone, keine Einnahmezeit).
+  hp: {
+    id: 'hp',
+    name: 'Stellung',
+    short: 'STL',
+    tagline: 'Eine Zone, die wandert. Wer allein drinsteht, punktet.',
+    description:
+      'Es gibt nur eine Stellung – und sie bleibt nicht lange an einem Ort. Wer sie allein hält, bekommt jede Sekunde einen Punkt; stehen beide Teams drin, ist sie umkämpft und niemand punktet. Kurz vor dem Wechsel taucht die nächste Stellung gedimmt auf: Wer früh umsetzt, hat den besseren Winkel.',
+    sizeRule: '{team} gegen {enemies} – {mates}',
+    rules: [
+      '6 gegen 6 – du und fünf Verbündete',
+      'Eine Stellung: wer allein drinsteht, bekommt 1 Punkt pro Sekunde',
+      'Beide Teams in der Stellung = umkämpft, niemand punktet',
+      'Die Stellung wandert (Standard alle 60 s) – 10 s vorher siehst du die nächste',
+      'Erstes Team mit 250 Punkten gewinnt · Zeitlimit 10 Minuten',
+    ],
+    hudObjective: 'Halte die Stellung – allein',
+    scoreUnit: 'Punkte',
+    scoreLimit: 250,
+    timeLimit: 600,
+    teams: true,
+    defaultAllies: 5,
+    defaultEnemies: 6,
+    limits: { allies: [0, 11], enemies: [1, 12] },
+    respawnDelay: 4,
+    streaks: true,
+    lethals: true,
+    online: true,
+    onlineVehicles: true,
+    // rotate: s je Zone (Option „wechsel“), preview: s Vorschau der nächsten Zone, pointsPerSecond: Teampunkte bei
+    // Alleinbesitz, holdChunk: s je „Stellung gehalten“-Gutschrift (SCORE_RULES.hold), spawnClear: m Wiedereinstieg-
+    // Abstand zur Zone, bulwark: s gehalten ohne Tod („Bollwerk“), zoneKills: Abschüsse an der Zone in einem Leben
+    // („Stellungskämpfer“), nextShare: Anteil der Bots, die in der Vorschau schon zur nächsten Zone gehen
+    objective: { rotate: 60, preview: 10, pointsPerSecond: 1, holdChunk: 5, spawnClear: 25, bulwark: 30, zoneKills: 5, nextShare: 0.34 },
+    options: [
+      { id: 'wechsel', label: 'Zonenwechsel', values: [45, 60, 90], def: 60, suffix: ' s', hint: 'So lange bleibt die Stellung an einem Ort.' },
+      { id: 'ziel', label: 'Punkteziel', values: [150, 250, 350], def: 250, limit: 'scoreLimit', hint: 'Punkte bis zum Sieg (1 Punkt je Sekunde Alleinbesitz).' },
+    ],
+    recommendedMaps: ['werk', 'hafen', 'altstadt'],
+    icon: icon('<ellipse cx="12" cy="17.5" rx="8.5" ry="3.2" stroke-dasharray="2.6 2"/><path d="M12 17.5V4"/><path d="M12 4.5h6.5l-1.8 2.4 1.8 2.4H12"/>'),
   },
 
   gun: {
@@ -147,6 +204,7 @@ export const MODES = {
     respawnDelay: 2,
     streaks: false,
     lethals: false,
+    online: true,
     demoteOnMelee: true,
     recommendedMaps: ['altstadt', 'werk', 'hafen'],
     icon: icon('<path d="M3 20h4.5v-4.5H12V11h4.5V6.5H21"/><path d="M16.5 3H21v4.5"/>'),
@@ -255,6 +313,8 @@ export const MODES = {
     respawnDelay: 3,
     streaks: true,
     lethals: true,
+    online: true,
+    onlineVehicles: true,
     objective: { tagLife: 30, pickupRadius: 1.7 },
     recommendedMaps: ['altstadt', 'hafen', 'werk'],
     icon: icon('<path d="M8 3h8l1 4v11a3 3 0 0 1-3 3h-4a3 3 0 0 1-3-3V7z"/><circle cx="12" cy="7" r="1.2"/><path d="M9.5 12h5M9.5 15h3.5"/>'),
@@ -286,6 +346,7 @@ export const MODES = {
     respawnDelay: 2,
     streaks: false,
     lethals: true,
+    online: true,
     teamNames: { A: 'Überlebende', B: 'Infizierte' },
     objective: { surviveTick: 20, infectedLoadout: { primary: 'knife', secondary: null, lethal: 'semtex' } },
     recommendedMaps: ['werk', 'altstadt', 'hafen'],
@@ -318,6 +379,8 @@ export const MODES = {
     respawnDelay: 5,
     streaks: false,
     lethals: true,
+    online: true,
+    maxTeam: 4, // höchstens 4 gegen 4 (Raum: maxPlayers ≤ 2 × maxTeam)
     recommendedMaps: ['werk', 'altstadt', 'hafen'],
     icon: icon('<path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.4 6.8 19.1l1-5.8L3.5 9.2l5.9-.9z"/>'),
   },
@@ -348,6 +411,7 @@ export const MODES = {
     respawnDelay: 2,
     streaks: false,
     lethals: false,
+    online: true,
     objective: { loadout: { primary: 'knife', secondary: null, lethal: null, tactical: null } },
     recommendedMaps: ['werk', 'altstadt', 'hafen'],
     icon: icon('<path d="M4 20l7.5-7.5"/><path d="M11.5 12.5L19.5 4.5c.6 2.8-.2 5.6-2.6 8l-2.4 2.4"/><path d="M9.5 10.5l4 4"/>'),
@@ -522,6 +586,10 @@ export const MEDALS = {
   markensammler: { id: 'markensammler', label: 'Markensammler', description: 'Fünf Erkennungsmarken in einem Leben eingesammelt.', xp: 100, tier: 'silber' },
   ueberlebender: { id: 'ueberlebender', label: 'Überlebender', description: 'Bis zum Schluss nicht infiziert.', xp: 200, tier: 'gold' },
   patientnull: { id: 'patientnull', label: 'Patient null', description: 'Als erster Infizierter drei Überlebende erwischt.', xp: 150, tier: 'silber' },
+  // Stellung (26.10.)
+  bollwerk: { id: 'bollwerk', label: 'Bollwerk', description: '30 Sekunden die Stellung gehalten, ohne zu fallen.', xp: 100, tier: 'silber' },
+  stellungskaempfer: { id: 'stellungskaempfer', label: 'Stellungskämpfer', description: 'Fünf Abschüsse an der Stellung in einem Leben.', xp: 125, tier: 'silber' },
+  vorhut: { id: 'vorhut', label: 'Vorhut', description: 'Als Erster in einer neuen Stellung – und dein Team hat sie genommen.', xp: 50, tier: 'bronze' },
 };
 
 export const MEDAL_ORDER = Object.keys(MEDALS);
@@ -578,6 +646,12 @@ export const SCORE_RULES = {
   deny: 50, // Marke eines Kameraden gesichert
   infect: 100, // Überlebenden infiziert
   survive: 50, // Infiziert: je Überlebens-Takt
+  // Stellung (26.10.): hold = 10 je Sekunde in der allein gehaltenen Zone, gutgeschrieben je 5 s (+50);
+  // hpcapture = als Erster des Teams eine neutrale/gegnerische Stellung allein halten; Abschüsse an der Zone
+  hold: 50,
+  hpcapture: 100,
+  hpdefend: 25,
+  hpassault: 25,
 };
 
 /** Punkte für zerstörte Fahrzeuge je Typ (Eroberung; unbekannte Typen: SCORE_RULES.vehicle). */
@@ -603,6 +677,10 @@ export const SCORE_LABELS = {
   deny: 'Abschuss verweigert',
   infect: 'Infiziert',
   survive: 'Überlebt',
+  hold: 'Stellung gehalten',
+  hpcapture: 'Stellung eingenommen',
+  hpdefend: 'Stellung verteidigt',
+  hpassault: 'Angriff auf die Stellung',
 };
 
 /** Teamnamen aus Sicht des Spielers (Team A = eigene Seite). */
@@ -682,6 +760,62 @@ export function rulesFor(modeId, { allies, enemies } = {}) {
 /** Liste der Modi in Anzeige-Reihenfolge. */
 export function listModes() {
   return MODE_ORDER.map((id) => MODES[id]);
+}
+
+/* ------------------------------------------------------------ Modus-Daten B6 (26.10.) */
+
+/** Online wählbare Modi (MODES[id].online) – eine Quelle für net/index.js und ui/net-menus.js. */
+export const ONLINE_MODE_IDS = Object.freeze(MODE_ORDER.filter((id) => MODES[id] && MODES[id].online));
+/** Online mit Fahrzeugen (MODES[id].onlineVehicles; Nur Messer, Waffenspiel, Infiziert, Ultimate bleiben ohne). */
+export const VEHICLE_MODE_IDS = Object.freeze(MODE_ORDER.filter((id) => MODES[id] && MODES[id].onlineVehicles));
+/** Obergrenze der Teamgröße im Raum (MODES[id].maxTeam, sonst 16). */
+export function maxTeamOf(modeId, fallback = 16) {
+  const m = MODES[modeId];
+  return m && Number.isFinite(m.maxTeam) ? m.maxTeam : fallback;
+}
+
+/**
+ * Modus-Einstellungen (MODES[id].options) bereinigen: { optId: Wert } mit genau den erlaubten Werten; Fehlendes oder
+ * Ungültiges → Standard (def). Zahlen bleiben Zahlen (auch aus „45“).
+ */
+export function modeOptionValues(modeId, raw) {
+  const m = MODES[modeId];
+  const out = {};
+  if (!m || !Array.isArray(m.options)) return out;
+  const src = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
+  for (const o of m.options) {
+    const v = src[o.id];
+    const hit = v == null ? undefined : o.values.find((x) => String(x) === String(v));
+    out[o.id] = hit !== undefined ? hit : o.def;
+  }
+  return out;
+}
+
+/**
+ * Nur die vom Standard abweichenden Werte (kurz für Speicher und Raum-Einstellungen; {} = alles Standard).
+ * skipLimits: ohne Optionen mit limit (Raum: dort gilt das allgemeine Punkteziel des Raum-Menüs, Prüfung 26.10.).
+ */
+export function modeOptionDiff(modeId, raw, { skipLimits = false } = {}) {
+  const m = MODES[modeId];
+  const all = modeOptionValues(modeId, raw);
+  const out = {};
+  for (const o of (m && m.options) || []) if (!(skipLimits && o.limit) && all[o.id] !== o.def) out[o.id] = all[o.id];
+  return out;
+}
+
+/** Anzeigetext eines Werts („60 s“). */
+export function modeOptionText(opt, v) {
+  return `${v}${(opt && opt.suffix) || ''}`;
+}
+
+/** URL-Kurzform „wechsel:45,ziel:150“ → { wechsel: '45', ziel: '150' } (Prüfwerkzeuge, ?mopt=). */
+export function parseModeOptions(str) {
+  const out = {};
+  for (const part of String(str || '').split(',')) {
+    const [k, v] = part.split(':');
+    if (k && v != null && /^[a-z0-9_]{1,24}$/i.test(k.trim())) out[k.trim()] = v.trim().slice(0, 24);
+  }
+  return out;
 }
 
 /** „10 Minuten“, „kein Limit“ … für Lobby/Website. */
@@ -805,6 +939,7 @@ export const CHALLENGE_POOL = [
   { id: 'multi', text: '{n} Mehrfachabschüsse (Doppelkill oder mehr)', stat: 'multis', d: 2, w: 10 },
   { id: 'mvp', text: 'Werde {n}-mal MVP', one: 'Werde einmal MVP', stat: 'mvp', d: 1, w: 3 },
   { id: 'damage', text: 'Verursache {n} Schaden', stat: 'damage', d: 2500, w: 12000 },
+  { id: 'hptime', text: 'Halte die Stellung insgesamt {n} Sekunden', stat: 'hpTime', d: 90, w: 480 },
 ];
 export const CHALLENGE_COUNTS = { daily: 3, weekly: 5 };
 export const CHALLENGE_XP = { daily: [300, 500], weekly: [1500, 2500] };
@@ -877,7 +1012,7 @@ export function challengeStats(s = {}) {
     vehicles: c.vehicles | 0, confirms: c.confirms | 0, denies: c.denies | 0, infects: c.infects | 0, survivals: c.survivals | 0,
     squad: c.squad | 0, minutes: Math.floor((Number(s.duration) || 0) / 60), hardWins: won && (s.difficulty === 'veteran' || s.difficulty === 'elite') ? 1 : 0,
     realKills: s.style === 'realistisch' ? s.kills | 0 : 0, multis: (md.doppelkill | 0) + (md.dreifachkill | 0) + (md.vierfachkill | 0) + (md.kahlschlag | 0),
-    mvp: md.mvp | 0, damage: s.damage | 0, secrets: c.secrets | 0,
+    mvp: md.mvp | 0, damage: s.damage | 0, secrets: c.secrets | 0, hpTime: Math.floor(Number(c.hpTime) || 0),
   };
 }
 

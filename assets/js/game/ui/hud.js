@@ -546,6 +546,9 @@ export class HUD {
     let sub = '';
     if (id === 'dom' || (mode && mode.flagBar)) {
       sub = '<div class="h-flags">' + (mode.objectives || []).map((f) => `<div class="h-flag" data-id="${esc(f.id)}"><i></i><b>${esc(f.id)}</b></div>`).join('') + '</div>';
+    } else if (id === 'hp') {
+      // Stellung (26.10.): aktive Zone + gedimmt die nächste (Vorschau), darunter Name und „Wechsel in 0:42“
+      sub = '<div class="h-flags">' + (mode.objectives || []).map((f) => `<div class="h-flag${f.next ? ' is-next' : ''}" data-id="${esc(f.id)}"><i></i><b>${esc(f.id)}</b></div>`).join('') + '</div><div class="h-hpt"><b></b><span></span></div>';
     } else if (id === 'gun') {
       const n = mode.steps ? mode.steps.length : 18;
       sub = `<div class="h-ladder">${'<i></i>'.repeat(n)}</div><div class="h-gunlead"></div>`;
@@ -559,6 +562,8 @@ export class HUD {
     this.el.ladder = [...this.el.sub.querySelectorAll('.h-ladder i')];
     this.el.gunlead = this.el.sub.querySelector('.h-gunlead');
     this.el.place = this.el.sub.querySelector('.h-place');
+    this.el.hpt = this.el.sub.querySelector('.h-hpt b');
+    this.el.hpt2 = this.el.sub.querySelector('.h-hpt span');
     this.el.parc = this.el.sub.querySelector('.h-parc');
     this.el.train.hidden = id !== 'training';
     if (id === 'training') {
@@ -598,7 +603,10 @@ export class HUD {
   /** Flaggen entstehen erst in mode.start() (nach attach) → Leiste/Marker nachziehen. */
   _syncObjectives() {
     const objs = (this.G.mode && this.G.mode.objectives) || [];
-    if ((this.el.mks || []).length === objs.length && (this.el.flags || []).length === objs.length) return;
+    // Stellung: Zonen wandern (andere Ids bei gleicher Anzahl) → an Ids und Vorschau festmachen
+    const key = objs.map((f) => `${f.id}${f.next ? '+' : ''}`).join(',');
+    if (key === this._objKey && (this.el.mks || []).length === objs.length && (this.el.flags || []).length === objs.length) return;
+    this._objKey = key;
     this._buildModeSections();
     this._buildMarkers();
   }
@@ -606,7 +614,7 @@ export class HUD {
   _buildMarkers() {
     const G = this.G;
     const objs = (G.mode && G.mode.objectives) || [];
-    this.el.markers.innerHTML = objs.map((f) => `<div class="h-mk" data-id="${esc(f.id)}"><div class="h-mk-d"><i></i><b>${esc(f.id)}</b></div><span></span></div>`).join('');
+    this.el.markers.innerHTML = objs.map((f) => `<div class="h-mk${f.next ? ' is-next' : ''}" data-id="${esc(f.id)}"><div class="h-mk-d"><i></i><b>${esc(f.id)}</b></div><span></span></div>`).join('');
     this.el.mks = [...this.el.markers.querySelectorAll('.h-mk')].map((n) => ({ n, d: n.querySelector('span'), ring: n.querySelector('i'), id: n.dataset.id }));
   }
 
@@ -1445,8 +1453,16 @@ export class HUD {
       setText(this.el.sAs, 'Ziele');
       setText(this.el.sBs, 'Treffer %');
     }
+    // Stellung: Zonenname und Zeit bis zum Wechsel (Vorschau: wohin)
+    if (id === 'hp' && this.el.hpt) {
+      const z = mode.zone;
+      const n = mode.preview ? mode.nextZone : null;
+      setText(this.el.hpt, z ? z.name : '');
+      setText(this.el.hpt2, n ? `→ ${n.name} in ${clock(Math.max(0, mode.rotLeft))}` : `Wechsel in ${clock(Math.max(0, mode.rotLeft || 0))}`);
+      toggle(this.el.hpt2, 'is-soon', !!n);
+    }
     // Flaggenleiste
-    if ((id === 'dom' || mode.flagBar) && this.el.flags) {
+    if ((id === 'dom' || id === 'hp' || mode.flagBar) && this.el.flags) {
       const map = new Map((mode.objectives || []).map((f) => [f.id, f]));
       for (const n of this.el.flags) {
         const f = map.get(n.dataset.id);
@@ -1622,7 +1638,7 @@ export class HUD {
       } else m.dodge = null;
       const dist = p.position.distanceTo(f.position);
       const inRange = dist <= f.radius && Math.abs(p.position.y - f.position.y) < 2.6 && p.alive;
-      if (inRange) inside = f;
+      if (inRange && !f.next) inside = f; // Stellung: die Vorschau-Zone zählt noch nicht
       // Auf Gerätepixel runden, Zittern unter einem halben Pixel ignorieren (Text wird nicht je Bild neu gerastert)
       x = Math.round(x * dpr) / dpr;
       y = Math.round(y * dpr) / dpr;
@@ -1647,6 +1663,15 @@ export class HUD {
     cb.hidden = false;
     const f = inside;
     const mine = p.team;
+    // Modus mit eigener Anzeige (Stellung: Halten/umkämpft, Balken = Zeit bis zum Wechsel)
+    const cv = typeof mode.captureView === 'function' ? mode.captureView(f, p) : null;
+    if (cv) {
+      setText(this.el.captureB, cv.title);
+      setText(this.el.captureS, cv.text);
+      if (cb.dataset.tone !== cv.tone) cb.dataset.tone = cv.tone;
+      setStyle(this.el.captureBar, 'transform', `scaleX(${clamp(cv.bar, 0, 1).toFixed(3)})`);
+      return;
+    }
     const ctl = f.control || 0;
     const myCtl = mine === 'A' ? ctl : -ctl; // −1 Gegner … +1 wir
     let text;

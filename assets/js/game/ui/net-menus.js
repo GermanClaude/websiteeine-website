@@ -10,21 +10,24 @@ import { ICON, deviceOf } from './icons.js';
 import { LoadoutPanel } from './loadout-panel.js';
 import { CLASSES, GAME_STYLES, STYLE_ORDER } from '../../shared/classes.data.js';
 import { WEATHERS, militaryVehiclesAllowed, LARGE_MAP_NAMES } from '../../shared/maps.data.js';
+import { ONLINE_MODE_IDS, VEHICLE_MODE_IDS, maxTeamOf, MODES as MODE_DATA } from '../../shared/modes.data.js';
+import { modeOptionsHtml, modeOptionsSummary } from './mode-options.js';
 
 /** Gerät eines Mitspielers (Roster device: PC/Handy/VR-Brille) – Abzeichen in der Raumliste bzw. Symbol vor dem Namen. */
 const devBadge = (r) => { const d = deviceOf(r.device); return `<em class="nr-badge is-dev" data-dev="${esc(r.device || 'pc')}" title="${esc(d.label)}">${d.icon}${esc(d.short)}</em>`; };
 const devIcon = (r) => { const d = deviceOf(r.device); return `<span class="sb-human" data-dev="${esc(r.device || 'pc')}" title="${esc(d.label)}">${d.icon}</span>`; };
 
-/** Stufe 1: nur diese Modi online (Spiegel von net/index.js – ohne Import, damit die Lobby keine Netz-Module lädt). */
-export const ONLINE_MODES = Object.freeze(['tdm', 'ult', 'ffa', 'dom', 'kc', 'messer', 'inf', 'gun']);
+/** Online wählbare Modi – 26.10.: aus den Modus-Daten (MODES[id].online), dieselbe Quelle wie net/index.js (ohne Import
+ *  der Netz-Module, damit die Lobby sie nicht lädt). */
+export const ONLINE_MODES = ONLINE_MODE_IDS;
 /** Raumcodes (= net/signal.js): 6 Zeichen ohne I, O, 0, 1. */
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 export const CODE_LENGTH = 6;
 const MAX_PLAYERS = 32;
 /** Raum-Einstellung „Fahrzeuge“: Standard an (wie net/index.js VEHICLES_ONLINE_DEFAULT – fehlt der Wert, gilt er). */
 const VEH_DEFAULT_ON = true;
-/** Modi mit Fahrzeugen online (Spiegel von net/index.js VEHICLE_MODES). */
-const VEH_MODES = new Set(['tdm', 'ffa', 'dom', 'kc']);
+/** Modi mit Fahrzeugen online (MODES[id].onlineVehicles, wie net/index.js VEHICLE_MODES). */
+const VEH_MODES = new Set(VEHICLE_MODE_IDS);
 // Rundendauer (s; 0 = Standard des Modus, höchstens 60 min) und Punkteziel (Vielfache des Modus-Standards; nicht im
 // Waffenspiel – dort zählen die Waffenstufen – und nicht in Modi ohne Punkteziel)
 const TIME_STEPS = [0, 180, 300, 480, 600, 900, 1200, 1800, 2700, 3600];
@@ -41,7 +44,7 @@ const limitText = (m, s) => ({
 // Panzer/Geländewagen nur auf großen Karten (Nutzer 21.10.; net/index.js startMatch prüft dasselbe)
 const vehMap = (s) => militaryVehiclesAllowed(s.map);
 const vehOn = (s) => VEH_MODES.has(s.mode) && vehMap(s) && (s.vehicles === undefined ? VEH_DEFAULT_ON : s.vehicles === true);
-const MAX_TEAM = 16;
+const MAX_TEAM = 16; // Teamgröße je Modus: maxTeamOf(modeId) (MODES[id].maxTeam, TDM Ultimate 4)
 const DIFF_ORDER = ['rekrut', 'regulaer', 'veteran', 'elite'];
 const IN_MATCH = ['loading', 'countdown', 'playing', 'paused'];
 const TOAST_LIFE = 4.5;
@@ -613,7 +616,7 @@ export class NetMenus {
     const humansGuess = 1;
     // Teamgröße: größere Seite der Lobby-Teams (inkl. Spieler), FFA: Hälfte der Teilnehmer
     let teamSize = teams ? Math.max((c.allies ?? 5) + humansGuess, c.enemies ?? 6) : Math.ceil(((c.enemies ?? 7) + 1) / 2);
-    teamSize = clampInt(teamSize, 1, MAX_TEAM);
+    teamSize = clampInt(teamSize, 1, maxTeamOf(mode, MAX_TEAM));
     let rec = 8;
     try { const r = this.net && this.net.recommendation ? this.net.recommendation() : null; if (r && r.max) rec = r.max; } catch { /* */ }
     return {
@@ -630,6 +633,7 @@ export class NetMenus {
       botFill: true,
       pvp: 'pvp',
       public: false,
+      modeOpts: l && typeof l._modeOpts === 'function' ? l._modeOpts(mode) : {}, // Modus-Einstellungen aus der Lobby
       ...extra,
     };
   }
@@ -780,7 +784,7 @@ export class NetMenus {
     const coop = s.pvp === 'coop';
     const cnt = this._q('[data-room-count]');
     if (cnt) cnt.textContent = `${roster.length}/${s.maxPlayers || '–'}`;
-    const size = clampInt(s.teamSize || 6, 1, MAX_TEAM);
+    const size = clampInt(s.teamSize || 6, 1, maxTeamOf(s.mode, MAX_TEAM));
     const row = (r) => {
       const self = r.id === net.selfId;
       const side = !teams ? 'ffa' : (r.team === 'B' ? 'B' : 'A') === myTeam ? 'ally' : 'enemy';
@@ -863,7 +867,7 @@ export class NetMenus {
     const s = this.net.room.settings || {};
     const L = this._labels(s);
     const teams = this._isTeams(s.mode);
-    const size = clampInt(s.teamSize || 6, 1, MAX_TEAM);
+    const size = clampInt(s.teamSize || 6, 1, maxTeamOf(s.mode, MAX_TEAM));
     const item = (k, v) => `<div class="nr-ro-i"><small>${esc(k)}</small><b>${esc(v)}</b></div>`;
     return `<div class="nr-ro">
       ${item('Modus', L.mode.name || s.mode)}${item('Karte', L.map.name || s.map)}
@@ -872,7 +876,7 @@ export class NetMenus {
       ${teams ? item('Spielart', s.pvp === 'coop' ? 'Gemeinsam gegen Bots' : 'Gegeneinander') : ''}
       ${item(teams ? 'Teamgröße' : 'Teilnehmer', teams ? `${size} gegen ${size}` : `${size * 2}`)}
       ${item('Bots', s.botFill ? 'füllen auf' : 'keine')}${item('Max. Spieler', String(s.maxPlayers || '–'))}
-      ${item('Rundendauer', limitText(this._data().MODES[s.mode], s).time)}${scoreSteps(this._data().MODES[s.mode]).length ? item('Punkteziel', limitText(this._data().MODES[s.mode], s).score) : ''}
+      ${item('Rundendauer', limitText(this._data().MODES[s.mode], s).time)}${modeOptionsSummary(this._data().MODES[s.mode], s.modeOpts, { skipLimits: true }).map(([k, v]) => item(k, v)).join('')}${scoreSteps(this._data().MODES[s.mode]).length ? item('Punkteziel', limitText(this._data().MODES[s.mode], s).score) : ''}
       ${item('Ausdauer', s.stamina === false ? 'unbegrenzt' : 'normal')}${item('Munition pro Abschuss', s.killAmmo === false ? 'aus' : s.style === 'realistisch' ? 'an der Leiche' : 'an')}
       ${item('Waffen von Leichen', s.lootWeapons === false ? 'aus' : 'erlaubt')}
       ${item('Fahrzeuge', vehOn(s) ? 'Panzer + Geländewagen' : VEH_MODES.has(s.mode) && !vehMap(s) ? 'nur zivile (kleine Karte)' : 'aus')}
@@ -886,7 +890,7 @@ export class NetMenus {
     const s = this.net.room.settings || {};
     const map = d.MAPS[s.map] || {};
     const teams = this._isTeams(s.mode);
-    const size = clampInt(s.teamSize || 6, 1, MAX_TEAM);
+    const size = clampInt(s.teamSize || 6, 1, maxTeamOf(s.mode, MAX_TEAM));
     const seg = (key, opts, cur, label, cls = '') => `<div class="nr-field${cls}"><h3 class="nr-lab">${esc(label)}</h3><div class="m-seg nr-seg" role="radiogroup" aria-label="${esc(label)}">${opts.map(([v, l, t, off]) => `<button type="button" role="radio" data-set="${esc(key)}" data-v="${esc(v)}" data-fk="${esc(key)}-${esc(v)}" aria-checked="${String(v) === String(cur)}"${off ? ' aria-disabled="true"' : ''}${t ? ` title="${esc(t)}"` : ''}>${l}</button>`).join('')}</div></div>`;
     const modes = d.ORDER.filter((id) => d.MODES[id]).map((id) => {
       const m = d.MODES[id];
@@ -929,7 +933,7 @@ export class NetMenus {
         <div class="nr-two nr-counts">
           <div class="nr-field">
             <h3 class="nr-lab">Größe</h3>
-            ${stepper('teamSize', teams ? 'Teamgröße' : 'Teilnehmer', size, 1, MAX_TEAM, teams ? size : size * 2)}
+            ${stepper('teamSize', teams ? 'Teamgröße' : 'Teilnehmer', size, 1, maxTeamOf(s.mode, MAX_TEAM), teams ? size : size * 2)}
             <p class="lb-note">${esc(teamNote)}</p>
           </div>
           <div class="nr-field">
@@ -948,6 +952,7 @@ export class NetMenus {
             ${stepper('scoreLimit', 'Punkteziel', sSteps.indexOf(s.scoreLimit ?? mdef.scoreLimit), 0, sSteps.length - 1, esc(limitText(mdef, s).score))}
           </div>` : ''}
         </div>
+        ${(() => { const mo = modeOptionsHtml(mdef, s.modeOpts, { style: 'room', skipLimits: true }); return mo ? `<div class="nr-two nr-mopts">${mo}</div>` : ''; })()}
         <div class="nr-two">
           ${sw('botFill', 'Bots füllen auf', 'Freie Plätze bekommen Bots', s.botFill !== false)}
           ${sw('public', 'Öffentlich', 'In der Liste öffentlicher Spiele und für „Schnell spielen“', !!s.public)}
@@ -1004,7 +1009,7 @@ export class NetMenus {
     const go = this._q('[data-room-go]');
     const m = d.MODES[s.mode] || {};
     const map = d.MAPS[s.map] || {};
-    const size = clampInt(s.teamSize || 6, 1, MAX_TEAM);
+    const size = clampInt(s.teamSize || 6, 1, maxTeamOf(s.mode, MAX_TEAM));
     const teams = this._isTeams(s.mode);
     if (sum) sum.innerHTML = `<small>${esc(m.short || s.mode)} · ${esc(map.name || s.map)}</small><b>${esc(m.name || s.mode)}</b><span>${teams ? `${size} gegen ${size}` : `${size * 2} Teilnehmer`} · ${roster.length}/${s.maxPlayers} Spieler</span>`;
     if (go) {
@@ -1024,7 +1029,7 @@ export class NetMenus {
     if (b.getAttribute('aria-disabled') === 'true') {
       this.menus.sound('error');
       const hint = this._q('[data-room-modehint]');
-      if (hint && b.dataset.set === 'mode') { hint.hidden = false; hint.textContent = `${b.title || 'Dieser Modus'}. Online gibt es vorerst Team-Deathmatch, Herrschaft, Kill Confirmed und Jeder gegen jeden.`; }
+      if (hint && b.dataset.set === 'mode') { hint.hidden = false; hint.textContent = `${b.title || 'Dieser Modus'}. Online gibt es: ${ONLINE_MODES.map((id) => (MODE_DATA[id] || {}).name || id).join(', ')}.`; }
       return;
     }
     if (b.disabled || !net) return;
@@ -1056,12 +1061,13 @@ export class NetMenus {
       this._renderRoster();
       return;
     }
+    if (ds.mopt) { const s = net.room.settings; this._update({ modeOpts: { ...(s.modeOpts || {}), [ds.mopt]: ds.v } }); return; } // Modus-Einstellungen (B6)
     if (ds.set) { this._update({ [ds.set]: ds.v }); return; }
     if (ds.step) {
       const s = net.room.settings;
       const d = Number(ds.d) || 0;
       if (ds.step === 'maxPlayers') this._update({ maxPlayers: clampInt((s.maxPlayers || 8) + d, Math.max(2, (net.roster || []).length), MAX_PLAYERS) });
-      else if (ds.step === 'teamSize') this._update({ teamSize: clampInt((s.teamSize || 6) + d, 1, MAX_TEAM) });
+      else if (ds.step === 'teamSize') this._update({ teamSize: clampInt((s.teamSize || 6) + d, 1, maxTeamOf(s.mode, MAX_TEAM)) });
       else if (ds.step === 'timeLimit') {
         const m = this._data().MODES[s.mode] || {};
         const i = clampInt(timeIdx(m, s) + d, 0, TIME_STEPS.length - 1);

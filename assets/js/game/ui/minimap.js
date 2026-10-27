@@ -225,12 +225,27 @@ export class Minimap {
     if (mode && mode.objectives && mode.objectives.length) {
       for (const f of mode.objectives) {
         toScreen(f.position.x, f.position.z, pt);
+        // Stellung (26.10.): Zonenkreis in Kartenmaßstab, die nächste Zone (Vorschau) gestrichelt und blass
+        if (f.ring) {
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(pt.x, pt.y, Math.max(3 * d, f.radius * scale), 0, Math.PI * 2);
+          ctx.globalAlpha = f.next ? 0.45 : 1;
+          if (f.next) ctx.setLineDash([4 * d, 3 * d]);
+          else { ctx.fillStyle = f.contested ? 'rgba(242,201,76,.16)' : f.owner == null ? 'rgba(255,255,255,.08)' : f.owner === p.team ? 'rgba(56,182,255,.18)' : 'rgba(255,59,59,.2)'; ctx.fill(); }
+          ctx.lineWidth = 1.5 * d;
+          ctx.strokeStyle = f.contested ? COL.gold : f.owner == null ? COL.neutral : f.owner === p.team ? COL.ally : COL.enemy;
+          ctx.stroke();
+          ctx.restore();
+        }
         let x = pt.x - half;
         let y = pt.y - half;
         const len = Math.hypot(x, y);
         const lim = rad - 9 * d;
         if (len > lim) { x = (x / len) * lim; y = (y / len) * lim; }
+        if (f.next) ctx.globalAlpha = 0.5;
         flag(ctx, half + x, half + y, f, p.team, d, this.font);
+        ctx.globalAlpha = 1;
       }
     }
 

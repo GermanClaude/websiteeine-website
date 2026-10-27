@@ -17,6 +17,7 @@ import { createWater } from './water.js';
 import { navFromData, validateNavGraph } from './navgraph.js';
 import { createMinimap } from './minimap.js';
 import { foliageUniforms } from './atlas.js';
+import { modusZielQuellen, modusZieleBauen } from './maps/modus-ziele.js'; // Ziele neuer Modi (Stellung …), eigene Datei (Plan M1/B7)
 
 const MAP_MODULES = {
   hafen: () => import('./maps/hafen.js'),
@@ -252,7 +253,8 @@ export async function loadWorld(G, mapId, opts = {}) {
   for (const team of ['A', 'B', 'ffa']) for (const s of res.spawns?.[team] || []) spawnSrc.push({ team, s });
   const domSrc = res.objectives?.dom || [];
   const pt = (p, yHint) => ({ x: p.x ?? p[0], z: p.z ?? p[2] ?? p[1], y: p.y ?? yHint, fallbackY: p.y ?? 0 });
-  const points = [...spawnSrc.map(({ s }) => pt(s, 0.4)), ...domSrc.map(o => pt(o, 0.4))];
+  const zielSrc = modusZielQuellen(id); // 26.10.: Stellungs-Zonen u. a. aus world/maps/modus-ziele.js (nur Bodenhöhe, keine Kollision)
+  const points = [...spawnSrc.map(({ s }) => pt(s, 0.4)), ...domSrc.map(o => pt(o, 0.4)), ...zielSrc.map(z => pt(z.o, 0.4))];
   const tJob0 = performance.now();
   const stageP = { Kollision: 0.86, 'Kugel-BVH': 0.88, Navigation: 0.9, Licht: 0.92 };
   // Zwei Worker parallel: Kollision → Startpunkte → Navigation | Kugel-BVH → Sonden-Gitter (Licht + Akustik)
@@ -342,6 +344,7 @@ export async function loadWorld(G, mapId, opts = {}) {
       const i = spawnSrc.length + k;
       return { id: o.id, position: new THREE.Vector3(points[i].x, job.snapped[i], points[i].z), radius: o.radius ?? 5 };
     }),
+    ...modusZieleBauen(zielSrc, (k) => job.snapped[spawnSrc.length + domSrc.length + k], THREE.Vector3),
   };
   progress(0.95, 'Navigation');
   const nav = navFromData(job.nav, cbvh);
@@ -386,6 +389,7 @@ export async function loadWorld(G, mapId, opts = {}) {
     };
     for (const t of ['A', 'B', 'ffa']) spawns[t].forEach((s, i) => probe(s.position, `Start ${t}${i}`));
     for (const o of objectives.dom) probe(o.position, `Flagge ${o.id}`);
+    for (const o of objectives.hp || []) probe(o.position, `Stellung ${o.id}`);
     for (const p of blocked) console.warn('[world] blockiert: ' + p);
   }
 

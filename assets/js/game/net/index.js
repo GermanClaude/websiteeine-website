@@ -30,7 +30,7 @@ import { PeerLink, ICE_SERVERS } from './peer.js';
 import { hex, randomBytes } from './crypto.js';
 import { BUILD } from '../../shared/build.js';
 import { MAPS, MAP_ORDER, militaryVehiclesAllowed } from '../../shared/maps.data.js';
-import { MODES, DIFFICULTY_ORDER } from '../../shared/modes.data.js';
+import { MODES, DIFFICULTY_ORDER, ONLINE_MODE_IDS, VEHICLE_MODE_IDS, maxTeamOf, modeOptionDiff, modeOptionValues } from '../../shared/modes.data.js';
 import { GAME_STYLES, CLASSES, ARMOR_TIERS, HELMETS } from '../../shared/classes.data.js';
 import { WEAPONS, EQUIPMENT, CAMOS } from '../../shared/weapons.data.js';
 import { ATTACHMENTS, UNDER_WEAPONS } from '../../shared/attachments.data.js';
@@ -50,12 +50,15 @@ import { PKT_INTERNAL_MIN, packetType } from './protocol.js';
  *  8: Ladeschritt „offen“ (Munitionsbunker mit Schiebetür, Kanonenzustand im Fahrzeugblock).
  *  9: Panzer je Team nach eigenem Vorbild (neue Fahrzeugtypen wk2h/wk1l).
  *  10: Waffen der ersten Stunde (Waffen-Indizes verschoben), Aufsätze/Tarnung in Ausrüstungen.
- *  11: Versorgung/MG-Gurte im Fahrzeugblock (Byte 63), Militärfahrzeuge nur auf großen Karten. */
-export const NET_VERSION = 12; // 12: neue Waffen ZW-12 Zwilling, P-9A, PS-41 Wirbel (Waffenliste länger → Waffenindizes verschoben, 26.10.)
-/** Online wählbare Modi (Eroberung folgt mit den Fahrzeugen online, Training bleibt offline). */
-export const ONLINE_MODES = Object.freeze(['tdm', 'ult', 'ffa', 'dom', 'kc', 'messer', 'inf', 'gun']);
-/** Modi mit Fahrzeugen online (Nur Messer, Waffenspiel und Infiziert bleiben ohne – Ausrüstung kommt dort vom Modus). */
-export const VEHICLE_MODES = Object.freeze(new Set(['tdm', 'ffa', 'dom', 'kc']));
+ *  11: Versorgung/MG-Gurte im Fahrzeugblock (Byte 63), Militärfahrzeuge nur auf großen Karten.
+ *  12: neue Waffen ZW-12 Zwilling, P-9A, PS-41 Wirbel (Waffenindizes verschoben, 26.10.). */
+export const NET_VERSION = 13; // 13: Modus Stellung online (27.10.)
+/** Online wählbare Modi (Eroberung folgt mit den Fahrzeugen online, Training bleibt offline). 26.10.: aus den Modus-Daten
+ *  (MODES[id].online, shared/modes.data.js ONLINE_MODE_IDS) – eine Quelle auch für ui/net-menus.js. */
+export const ONLINE_MODES = ONLINE_MODE_IDS;
+/** Modi mit Fahrzeugen online (Nur Messer, Waffenspiel und Infiziert bleiben ohne – Ausrüstung kommt dort vom Modus);
+ *  MODES[id].onlineVehicles. */
+export const VEHICLE_MODES = Object.freeze(new Set(VEHICLE_MODE_IDS));
 export const HOST_ID = 1;
 export const FIRST_CLIENT_ID = 2;
 export const FIRST_BOT_ID = 1000;
@@ -93,6 +96,7 @@ export const DEFAULT_ROOM = Object.freeze({
   killAmmo: true, // Munition pro Abschuss an (jedes Gerät schreibt sie seinem Spieler selbst gut)
   lootWeapons: true, // Waffen von Leichen aufheben (der Host erlaubt die Waffe danach für die Puppe)
   cheatMenu: true, // Cheat-Menü erlaubt (alle Modi) (aus = vom Host deaktiviert; Aktive tragen ein Symbol in der Punktetabelle)
+  modeOpts: Object.freeze({}), // Modus-Einstellungen (MODES[id].options), nur Abweichungen vom Standard
 });
 
 const TIME_SYNC_MS = 2000;
@@ -164,9 +168,10 @@ export function normalizeSettings(partial = {}, base = DEFAULT_ROOM, hostName = 
     time: time === 'zufall' || time === 'echtzeit' || times.includes(time) ? time : 'standard',
     weather: weather === 'zufall' || weathers.includes(weather) ? weather : 'standard',
     difficulty: DIFFICULTY_ORDER.includes(pick('difficulty')) ? pick('difficulty') : DIFFICULTY_ORDER.includes(b.difficulty) ? b.difficulty : 'regulaer',
-    maxPlayers: clampInt(pick('maxPlayers'), 2, mode === 'ult' ? 8 : MAX_PLAYERS, 8), // TDM Ultimate: höchstens 8
+    // Teamgröße je Modus (MODES[id].maxTeam, z. B. TDM Ultimate 4 → höchstens 8 Spieler)
+    maxPlayers: clampInt(pick('maxPlayers'), 2, Math.min(MAX_PLAYERS, 2 * maxTeamOf(mode)), 8),
     botFill: pick('botFill') !== false,
-    teamSize: clampInt(pick('teamSize'), 1, mode === 'ult' ? 4 : 16, mode === 'ult' ? 4 : 6),
+    teamSize: clampInt(pick('teamSize'), 1, maxTeamOf(mode), Math.min(6, maxTeamOf(mode))),
     pvp: pick('pvp') === 'coop' ? 'coop' : 'pvp',
     public: pick('public') === true,
     style: GAME_STYLES[pick('style')] ? pick('style') : 'arcade',
@@ -182,6 +187,9 @@ export function normalizeSettings(partial = {}, base = DEFAULT_ROOM, hostName = 
     tankEra: ['karte', 'modern', 'wk2', 'wk1'].includes(pick('tankEra')) ? pick('tankEra') : 'karte',
     killAmmo: pick('killAmmo') !== false,
     cheatMenu: pick('cheatMenu') !== false,
+    // Modus-Einstellungen (MODES[id].options, B6): nur Abweichungen vom Standard; Moduswechsel ohne neue → Standard.
+    // Optionen mit limit (Stellung: Punkteziel) bleiben draußen – im Raum gilt scoreLimit, das Menü zeigt nur das (26.10.)
+    modeOpts: modeOptionDiff(mode, p.mode !== undefined && p.mode !== b.mode && p.modeOpts === undefined ? {} : pick('modeOpts'), { skipLimits: true }),
   };
 }
 
@@ -891,6 +899,7 @@ export class NetSystem {
         killAmmo: s.killAmmo !== false, // Raum-Einstellung „Munition pro Abschuss“ (weapons/index.js)
         lootWeapons: s.lootWeapons !== false, // Raum-Einstellung „Waffen von Leichen“ (mappoints.js)
         cheatMenu: s.cheatMenu !== false, // Raum-Einstellung „Cheat-Menü“ (cheats.js)
+        modeOpts: modeOptionValues(s.mode, s.modeOpts), // Modus-Einstellungen (z. B. Stellung: Zonenwechsel) – Host und Clients gleich
       },
     };
     if (s.timeLimit != null) cfg.timeLimit = s.timeLimit;
