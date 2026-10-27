@@ -23,6 +23,7 @@ const _probeCap = new Capsule(new Vector3(), new Vector3(), 0.3);
 const _n = new Vector3();
 const _push = new Vector3();
 const _prev = new Vector3();
+const _stepStart = new Vector3();
 let _td = new Float64Array(64 * 12); // vorbereitete Bodendreiecke (xz-Baryzentrik)
 
 // Sondenpunkte relativ zum Radius (Mitte zuerst)
@@ -139,6 +140,7 @@ export class CapsuleBody {
     const fine = typeof collider.getCapsuleTriangles === 'function' && typeof collider.triangleCapsuleIntersect === 'function';
     if (!fine) { this._stepCoarse(dt, collider, world); return; }
 
+    _stepStart.copy(this.position);
     const hTravel = Math.hypot(v.x, v.z) * dt;
     const vTravel = Math.abs(v.y) * dt;
     // walls: Unterschritte ≤ halber Radius auch bei großem dt (Zeitlupe/Zeitraffer bis ×4, 10-FPS-Geräte, Hechtsprung)
@@ -180,6 +182,20 @@ export class CapsuleBody {
       }
     }
     _tris.length = 0;
+
+    // Bodensicherung in gegrabenen Löchern (digging.js, 27.10.): Höhenfeld ist einwertig – unter dem Gelände ist immer
+    // Erde. Rutscht die Kapsel an einer steilen Schachtwand hinein, zurück an den Anfang des Schritts und auf den Boden.
+    const tf = world.terrainFloor;
+    if (tf) {
+      let g = tf(this.position.x, this.position.z, this.radius);
+      if (g !== null && this.position.y < g - 0.2) {
+        this.position.x = _stepStart.x; this.position.z = _stepStart.z;
+        g = tf(this.position.x, this.position.z, this.radius);
+        if (g !== null && this.position.y < g) { this.position.y = g; if (v.y < 0) v.y = 0; this.onGround = true; this.groundY = g; }
+        v.x = 0; v.z = 0;
+        this._sync();
+      }
+    }
 
     if (world.bounds && this.position.y < world.bounds.min.y - 6) this.outOfWorld = true;
   }

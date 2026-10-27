@@ -6,8 +6,8 @@
 // (Echte Tunnel unter der Erde kann ein Höhenfeld nicht darstellen – gegraben wird von oben.)
 import * as THREE from 'three';
 
-// MAX 27.10.: 6 m unter Gelände (vorher 60 m) – tiefer reichte die Karte nicht (Unterkante, Wasser), man fiel hindurch
-const R = 1.6, DY = 0.4, MAX = 6, REACH = 3.4;
+// 27.10.: bis 60 m tief (Nutzerwunsch); Kartenunterkante wächst mit, Bodensicherung in Löchern (world.terrainFloor)
+const R = 1.6, DY = 0.4, MAX = 60, REACH = 3.4;
 const _n = new THREE.Vector3(0, 1, 0);
 // Explosionskrater je Sprengsatz: Radius, Tiefe (m) bei Detonation am Boden; höher in der Luft → kleiner/flacher
 const CRATER = {
@@ -22,6 +22,12 @@ export class Digging {
     const T = G.world && G.world.terrain;
     this.hf = T && T.heightfield;
     this.chunks = T && T.chunks;
+    // Bodensicherung (engine/physics.js): in gegrabenen Löchern nie unter dem Gelände landen (steile Schachtwände)
+    // (tiefste Geländehöhe unter der Kapsel-Grundfläche: Mitte + 4 Punkte auf Radius r – darunter steht man nie)
+    if (this.hf && G.world) {
+      const hf = this.hf;
+      G.world.terrainFloor = (x, z, r = 0.3) => (hf.dugAt(x, z) ? Math.min(hf.heightAt(x, z), hf.heightAt(x + r, z), hf.heightAt(x - r, z), hf.heightAt(x, z + r), hf.heightAt(x, z - r)) : null);
+    }
     this._off = this.hf ? [G.events.on('impact', (e) => this._impact(e)), G.events.on('explosion', (e) => this._blast(e))] : [];
   }
 
@@ -71,6 +77,9 @@ export class Digging {
     const box = crater ? this.hf.dig(x, z, Math.min(3, r), Math.min(1.2, dy), 2.5, true) : this.hf.dig(x, z, R, DY, MAX);
     if (!box) return false;
     this.count++;
+    // Kartenunterkante mitziehen (sonst gilt man unten im Loch als „aus der Welt gefallen“)
+    const B = G.world && G.world.bounds;
+    if (B && B.min && Number.isFinite(this.hf.minH) && this.hf.minH - 2 < B.min.y) B.min.y = this.hf.minH - 2;
     if (this.chunks && typeof this.chunks.refresh === 'function') this.chunks.refresh(box.minX, box.minZ, box.maxX, box.maxZ);
     const y = this.hf.heightAt(x, z);
     if (!crater && G.effects && typeof G.effects.impact === 'function') G.effects.impact(new THREE.Vector3(x, y + 0.05, z), _n, 'dirt', { big: true });

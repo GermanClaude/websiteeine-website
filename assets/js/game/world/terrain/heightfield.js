@@ -75,7 +75,7 @@ export class Heightfield {
     // Wände nicht steiler als ≈ 50°: Nachbarpunkte höchstens maxStep auseinander (sonst rutscht die Kapsel durch)
     // 27.10.: Rand so breit wie die größte Tiefe es verlangt und abwechselnde Durchläufe bis alles passt – vorher nur
     // 3 Punkte/4 Durchläufe: ab ≈ 6 m Tiefe entstand eine senkrechte Stufe, durch die man fiel/hindurchsah.
-    const maxStep = 1.2 * res, m = Math.min(16, Math.ceil((maxDepth + 0.3) / maxStep) + 2);
+    const maxStep = 1.2 * res, m = Math.min(4, Math.ceil((maxDepth + 0.3) / maxStep) + 2); // bis ≈ 6 m flache Hänge, tiefer ein Schacht
     const a0 = Math.max(1, i0 - m), a1 = Math.min(n - 2, i1 + m), b0 = Math.max(1, j0 - m), b1 = Math.min(n - 2, j1 + m);
     const relax = (o) => {
       const lo = Math.min(H[o - 1], H[o + 1], H[o - n], H[o + n]);
@@ -139,6 +139,18 @@ export class Heightfield {
 
   /** Innerhalb des Höhenfelds (xz)? */
   contains(x, z) { return x >= this.minX && x <= this.maxX && z >= this.minZ && z <= this.maxZ; }
+
+  /** Wurde bei (x, z) gegraben (Spaten/Krater, ±1 Stützpunkt)? Für die Bodensicherung in Löchern (27.10.). */
+  dugAt(x, z) {
+    const O = this._orig;
+    if (!O) return false;
+    const n = this.n, H = this.heights;
+    const ci = Math.round((x - this.minX) / this.res), cj = Math.round((z - this.minZ) / this.res);
+    for (let j = Math.max(0, cj - 1); j <= Math.min(n - 1, cj + 1); j++) for (let i = Math.max(0, ci - 1); i <= Math.min(n - 1, ci + 1); i++) {
+      if (H[j * n + i] < O[j * n + i] - 0.05) return true;
+    }
+    return false;
+  }
 
   /** Kleinste/größte Höhe in einem Rechteck (blockweise, konservativ). → [min, max] */
   rangeY(minX, minZ, maxX, maxZ, out = [0, 0]) {
