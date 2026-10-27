@@ -7,7 +7,7 @@ import { esc } from '../dom.js';
 import { rowHtml, syncRows, setRowDisabled } from './rows.js';
 
 export const VR_KEYS = ['vrEnabled', 'vrHand', 'vrTurn', 'vrTurnStep', 'vrTurnSpeed', 'vrVignette', 'vrVignetteStrength', 'vrMoveDir',
-  'vrSeated', 'vrPhysical', 'vrLaser', 'vrQuality', 'vrScale'];
+  'vrSeated', 'vrPhysical', 'vrRoomScale', 'vrSmoothing', 'vrLaser', 'vrQuality', 'vrScale'];
 
 const HINTS = {
   vrEnabled: 'Im Match erscheint „VR starten“ (unten in der Mitte bzw. im Pausenmenü). Lobby und Einstellungen bleiben am Bildschirm.',
@@ -18,6 +18,8 @@ const HINTS = {
   vrMoveDir: 'Blickrichtung: Stick nach vorn läuft dorthin, wohin du schaust. Controller: dorthin, wohin die linke Hand zeigt.',
   vrSeated: 'Sitzend: Ducken und Hinlegen nur per Taste (B bzw. lange halten), die Sitzhöhe gilt als Stehen.',
   vrPhysical: 'Kopf zur Seite neigen = lehnen, in die Hocke gehen = ducken, ganz runter = hinlegen.',
+  vrSmoothing: 'Glättet kleines Handzittern am Lauf; schnelle Schwenks bleiben ungebremst.',
+  vrRoomScale: 'Wenn du im Raum gehst, geht deine Figur genauso mit (Stick zusätzlich). Aus: seitlicher Kopfversatz lehnt statt zu gehen.',
   vrLaser: 'Kleiner Punkt dort, wohin der Lauf zeigt (färbt sich bei Treffern).',
   vrQuality: 'Automatisch: auf der Quest-Brille „Niedrig“ (72–90 Bilder/s), am PC mit Air Link wie am Bildschirm.',
   vrScale: 'Weniger = schneller, aber unschärfer. Automatisch: Quest-Brille 80 %, PC 100 %.',

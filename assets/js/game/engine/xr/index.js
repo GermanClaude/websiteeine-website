@@ -19,6 +19,10 @@
 //   (< 42 % der kalibrierten Stehhöhe), mit Hysterese.
 // Bewegung: Stick der Nebenhand (relativ zu Blick oder Controller), Drehen mit dem Stick der Haupthand (Schritte 15/30/45°
 //   oder flüssig) – mit Komfort-Vignette. Tasten über die Belegung (shared/bindings.data.js, Gerät 'xr').
+// 27.10. (Nutzer: Waffe nur in einer Hand, kein Wechsel, keine Hände, Gehen): Hände = Handschuhe + Unterarm der
+//   Ego-Arme (weapons/viewmodel.js) an den Controllern; Nebenhand greift mit der Griff-Taste den Vorderschaft und führt
+//   dann den Lauf (gun.two); Holster: Griff-Taste der Haupthand über der Schulter/hinter dem Kopf = Hauptwaffe, an der
+//   Hüfte = Pistole; echtes Gehen 1:1 (Einstellung vrRoomScale, Lehnen dann nur über Kopfneigen).
 // Bild: renderer.js zeichnet in VR ohne Nachbearbeitung (Welt + Waffe mit Welttiefe), main.js taktet per
 //   renderer.setAnimationLoop. Eigene VR-Grafikvorgabe: Quest-Browser Stufe „Niedrig“ + 80 % Auflösung, PC wie am
 //   Bildschirm + 100 %, Foveated Rendering 1, MSAA über den Kontext (renderer.js, Einstellung vrEnabled).
@@ -28,6 +32,7 @@ import { collisionRay, keepClear } from '../physics.js';
 import { VrOverlay } from './overlay.js';
 import { WristHud } from './wrist.js';
 import { VrMenu } from './menu.js';
+import { ACTION_BY_ID, XR_CODES, codeLabel, resolveBindings, setBinding, resetBindings } from '../../../shared/bindings.data.js';
 
 // Augenhöhen wie player.js (STAND_EYE, CROUCH_EYE, PRONE_EYE) und Lehnweiten (LEAN_SIDE, …_CROUCH, PRONE_LEAN_SIDE)
 const EYE = { stand: 1.65, crouch: 1.0, prone: 0.38 };
@@ -43,6 +48,15 @@ const SNAP_OUT = 0.35;
 const TURN_DEAD = 0.2;
 const AIM_RANGE = 250;
 const RESULT_TIME = 4; // s Ergebnistafel, dann endet VR
+const GRAB_R = 0.16; // m Nebenhand ↔ Vorderschaft zum Greifen
+const GRAB_HOLD = 0.4; // m zusätzlicher Spielraum, bevor der Griff abreißt
+const ROOM_FWD = 0.04; // m Totzone für echtes Gehen 1:1
+// Steuerungs-Seite im VR-Menü: belegbare Aktionen (Reihenfolge = Wichtigkeit), 6 je Seite, Tastenerfassung 6 s
+const CTL_ACTIONS = ['fire', 'reload', 'swap', 'melee', 'grenade', 'tactical', 'jump', 'crouch', 'prone', 'sprint', 'interact', 'plate',
+  'feuermodus', 'light', 'inspect', 'verband', 'gadget', 'faehigkeit', 'bauen', 'streak1', 'streak2', 'streak3', 'scoreboard'];
+const CTL_PAGE = 6;
+const CTL_CAPTURE = 6;
+const CTL_NOTE = 'Fest: Abzug der Haupthand im Menü wählt · Griff-Taste Haupthand an Rücken/Hüfte zieht Hauptwaffe/Pistole · Griff-Taste Nebenhand am Vorderschaft hält beidhändig · Sticks: laufen/drehen';
 const CALIB_DELAY = 0.4; // s nach dem Start bis zur automatischen Höhenmessung (Headset beruhigt sich)
 // Eigenständige Brillen-Browser (Quest, Pico, Wolvic) → VR-Grafik „Niedrig“; PC (Air Link/Quest Link) wie am Bildschirm
 const STANDALONE_UA = /OculusBrowser|Quest|Pico|Wolvic/i;
@@ -129,12 +143,20 @@ export class XRSystem {
     this.aimDir = new THREE.Vector3(0, 0, -1);
     this.aimPoint = new THREE.Vector3();
     this.aimDist = AIM_RANGE;
+    /** Pose der Waffe (Welt): Griff der Haupthand; Drehung = Zielstrahl bzw. beidhändig Richtung Nebenhand. */
+    this.gun = { pos: new THREE.Vector3(), quat: new THREE.Quaternion(), dir: new THREE.Vector3(0, 0, -1), ok: false, two: false };
+    this.offSide = 'left';
+    this._zone = null;
+    this._mainGrip = false;
     this._aimFrame = -1;
     this._posedFrame = -1;
     this._poseKey = new Float64Array(7);
     this._dotT = 0;
     this._dotKind = '';
     this._menuPrev = { trig: false, a: false, nav: 0 };
+    this._ctlPage = 0;
+    this._capture = null; // { action, t, armed }
+    this._capPrev = new Map();
     this._resultAt = null;
     this._wasAlive = true;
     this._loop = (t, f) => { if (f && this.onFrame) this.onFrame(t, f); };
@@ -334,6 +356,7 @@ export class XRSystem {
     try { vp = frame.getViewerPose(ref); } catch { vp = null; }
     readPose(this.head, vp);
     const mainSide = this.G.settings.get('vrHand') === 'links' ? 'left' : 'right';
+    this.offSide = mainSide === 'right' ? 'left' : 'right';
     const M = this.hands.main, O = this.hands.off;
     M.grip.ok = M.ray.ok = O.grip.ok = O.ray.ok = false;
     M.gamepad = O.gamepad = null;
@@ -349,6 +372,16 @@ export class XRSystem {
       } catch { h.grip.ok = h.ray.ok = false; }
       if (!h.grip.ok && h.ray.ok) { h.grip.pos.copy(h.ray.pos); h.grip.quat.copy(h.ray.quat); h.grip.ok = true; }
     }
+    // Waffenhand: adaptive Glättung der Drehung (27.10., Nutzer: „Waffe zittert“) – in Ruhe stark (Handzittern am
+    // langen Lauf), beim Schwenken kaum (kein Nachziehen): Grenzfrequenz 3 Hz + 6 Hz je rad/s Drehgeschwindigkeit
+    if (M.ray.ok && this.G.settings.get('vrSmoothing') !== false && dt > 0) {
+      const f = M.rayF || (M.rayF = new THREE.Quaternion().copy(M.ray.quat));
+      if (!this._smoothOk) { f.copy(M.ray.quat); this._smoothOk = true; }
+      const ang = 2 * Math.acos(Math.min(1, Math.abs(f.dot(M.ray.quat))));
+      const cut = 3 + 6 * (ang / dt);
+      f.slerp(M.ray.quat, 1 - Math.exp(-2 * Math.PI * cut * dt));
+      M.ray.quat.copy(f);
+    } else this._smoothOk = false;
     // Höhe + Ausrichtung beim ersten stabilen Kopfbild
     if (!this.ready && this.head.ok) {
       this._calibT += dt;
@@ -419,22 +452,64 @@ export class XRSystem {
     }
     // Zielen: Waffe am Auge (zusätzlich zur Griff-Taste)
     if (typeof input.setXrPose === 'function') input.setXrPose('ads', p.alive && this._adsNear());
+    // Holster: Haupthand an Rücken/Hüfte + Griff-Taste → Waffe ziehen
+    this._holsters(p);
     // Countdown/Menü: echtes Gehen verschiebt den Körper nicht (die Welt gleitet mit), sonst wie Laufen
     this._body(dt, p, G.match.state !== 'playing');
   }
 
   /** Waffe ans Auge gehoben? Strahl der Haupthand läuft ≤ 7 cm am Kopf vorbei, zeigt grob in Blickrichtung, Hand ≤ 55 cm vor dem Kopf. */
   _adsNear() {
-    const r = this.hands.main.ray;
-    if (!r.ok || !this.head.ok) return false;
-    const d = _v.set(0, 0, -1).applyQuaternion(r.quat);
-    const to = _v2.subVectors(this.head.pos, r.pos);
-    const t = to.dot(d); // Kopf liegt hinter dem Strahlursprung → t < 0
+    const g = this.gun;
+    if (!g.ok || !this.head.ok) return false;
+    // Welt (Waffenpose des letzten Bildes – beidhändig zeigt der Lauf zur Nebenhand, nicht entlang des Controllers)
+    const d = g.dir;
+    const to = _v2.subVectors(this.eye, g.pos);
+    const t = to.dot(d); // Kopf liegt hinter dem Griff → t < 0
     if (t > 0.05 || t < -0.55) return false;
     const off = to.addScaledVector(d, -t).length();
-    if (off > 0.07) return false;
-    const hf = _f.set(0, 0, -1).applyQuaternion(this.head.quat);
-    return hf.dot(d) > 0.9; // ≈ 25°
+    if (off > 0.08) return false;
+    return this.headFwd.dot(d) > 0.9; // ≈ 25°
+  }
+
+  /**
+   * Holster (27.10.): Haupthand über der Schulter/hinter dem Kopf → Hauptwaffe (slot1), an der Hüfte der Waffenseite →
+   * Pistole (slot2). Beim Hineingreifen kurzer Puls, Griff-Taste (Flanke) zieht die Waffe. Zonen im Trackingraum relativ
+   * zum Kopf (Kopf-Gierwinkel): x nach rechts, y hoch, z nach hinten.
+   */
+  _holsters(p) {
+    const M = this.hands.main;
+    const gp = M.gamepad;
+    const gv = gp && gp.buttons && gp.buttons[1] ? gp.buttons[1].value || (gp.buttons[1].pressed ? 1 : 0) : 0;
+    const was = this._mainGrip;
+    this._mainGrip = gv > 0.6 ? true : gv < 0.3 ? false : was;
+    if (!p.alive || p.vehicle || !M.grip.ok || !this.head.ok || (this.menu && this.menu.open)) { this._zone = null; return; }
+    _v.set(0, 0, -1).applyQuaternion(this.head.quat);
+    let fx = _v.x, fz = _v.z;
+    const fl = Math.hypot(fx, fz) || 1;
+    fx /= fl; fz /= fl;
+    const dx = M.grip.pos.x - this.head.pos.x, dy = M.grip.pos.y - this.head.pos.y, dz = M.grip.pos.z - this.head.pos.z;
+    const right = dx * -fz + dz * fx, back = -(dx * fx + dz * fz);
+    const side = this.offSide === 'left' ? 1 : -1; // Waffenseite (+ = rechts)
+    let zone = null;
+    if (dy > -0.42 && back > 0.02 && Math.abs(right) < 0.5) zone = 'primary'; // über die Schulter auf den Rücken
+    else if (dy < -0.45 && dy > -1.05 && right * side > 0.1 && right * side < 0.5 && Math.abs(back) < 0.3) zone = 'secondary'; // Hüfte
+    if (zone !== this._zone) { this._zone = zone; if (zone) this._pulse(M, 0.15, 12); }
+    if (zone && this._mainGrip && !was && this.G.input && this.G.input.simulate) {
+      this.G.input.simulate.tap(zone === 'primary' ? 'slot1' : 'slot2');
+      this._pulse(M, 0.55, 35);
+      this.G.events.emit('xr:holster', { zone });
+    }
+  }
+
+  /** Schulter (Welt) unter dem Kopf: side 1 = rechts, −1 = links (Unterarm-Löser der Ego-Arme). */
+  shoulderWorld(side, out) {
+    if (!this.ready) return false;
+    let fx = this.headFwd.x, fz = this.headFwd.z;
+    const l = Math.hypot(fx, fz);
+    if (l < 1e-3) { fx = 0; fz = -1; } else { fx /= l; fz /= l; }
+    out.set(this.eye.x + (-fz) * 0.19 * side - fx * 0.06, this.eye.y - 0.27, this.eye.z + fx * 0.19 * side - fz * 0.06);
+    return true;
   }
 
   /** Raumbewegung (Körper folgt dem Kopf), Lehnen aus dem Seitenversatz, echtes Ducken/Hinlegen. */
@@ -443,6 +518,7 @@ export class XRSystem {
     const h = this.head.pos;
     const c = this.center;
     const physical = !!S.get('vrPhysical');
+    const room = S.get('vrRoomScale') !== false; // echtes Gehen 1:1: Körper bleibt unter dem Kopf
     if (!p.alive || p.vehicle || p.mantling) {
       if (!p.alive) c.set(h.x, h.z);
       p.xrLean = 0;
@@ -458,9 +534,10 @@ export class XRSystem {
     const lat = ox * rx + oz * rz;
     const fwd = ox * fx + oz * fz;
     const side = p.prone ? LEAN.prone : p.crouching ? LEAN.crouch : LEAN.stand;
-    const latLim = physical ? side : 0;
+    const latLim = room ? ROOM_FWD : physical ? side : 0;
+    const fwdLim = room ? ROOM_FWD : FWD_MAX;
     const exL = Math.abs(lat) > latLim ? lat - Math.sign(lat) * latLim : 0;
-    const exF = Math.abs(fwd) > FWD_MAX ? fwd - Math.sign(fwd) * FWD_MAX : 0;
+    const exF = Math.abs(fwd) > fwdLim ? fwd - Math.sign(fwd) * fwdLim : 0;
     // Rückführung: vor/zurück zügig (Körper folgt), seitlich nur innerhalb der Totzone (sonst bliebe kein Lehnen)
     const dF = exF + (fwd - exF) * damp(1 / 0.6, dt);
     const dL = exL + (Math.abs(lat) < LEAN_DEAD ? (lat - exL) * damp(1 / 1.5, dt) : 0);
@@ -477,7 +554,7 @@ export class XRSystem {
     const l = lat - dL;
     let lean = 0;
     if (physical) {
-      lean = Math.sign(l) * clamp((Math.abs(l) - LEAN_DEAD) / Math.max(0.05, side - LEAN_DEAD), 0, 1);
+      lean = room ? 0 : Math.sign(l) * clamp((Math.abs(l) - LEAN_DEAD) / Math.max(0.05, side - LEAN_DEAD), 0, 1);
       const roll = -Math.asin(clamp(_v2.set(1, 0, 0).applyQuaternion(this.head.quat).y, -1, 1)); // > 0: nach rechts geneigt
       const rl = Math.sign(roll) * clamp((Math.abs(roll) - ROLL_DEAD) / (ROLL_FULL - ROLL_DEAD), 0, 1);
       if (Math.abs(rl) > Math.abs(lean)) lean = rl;
@@ -594,6 +671,7 @@ export class XRSystem {
       toWorld(h.grip, h.gripW, rig);
       toWorld(h.ray, h.rayW, rig);
     }
+    this._solveGun(p);
     this._posedFrame = G.time.frame;
     if (this._aimFrame !== G.time.frame) { this._aimFrame = G.time.frame; this._updateAim(p); }
     return true;
@@ -617,7 +695,7 @@ export class XRSystem {
 
   /** Zielpunkt: Strahl der Haupthand gegen Welt und Gegner; Laufrichtung = Auge → Zielpunkt. */
   _updateAim(p) {
-    const r = this.hands.main.rayW;
+    const r = this.gun;
     if (!r.ok) {
       this.aimDir.copy(this.headFwd);
       this.aimDist = 50;
@@ -661,11 +739,46 @@ export class XRSystem {
    */
   gunPose(pos, quat) {
     if (!this.presenting || !this.ready) return false;
-    const M = this.hands.main;
-    if (!M.rayW.ok) return false;
-    pos.copy(M.gripW.ok ? M.gripW.pos : M.rayW.pos);
-    quat.copy(M.rayW.quat);
+    if (!this.gun.ok) return false;
+    pos.copy(this.gun.pos);
+    quat.copy(this.gun.quat);
     return true;
+  }
+
+  /**
+   * Waffenpose aus den Händen (Welt): Griff der Haupthand, Drehung des Zielstrahls. Beidhändig (Nebenhand drückt die
+   * Griff-Taste am Vorderschaft, viewmodel.xrSupport): Langwaffen zeigen vom Griff zur Nebenhand, das Kippen um den Lauf
+   * folgt der Haupthand; Pistolen bleiben in der Schusshand (Nebenhand umfasst nur). Loslassen oder > 40 cm Abstand löst.
+   */
+  _solveGun(p) {
+    const M = this.hands.main, O = this.hands.off, g = this.gun;
+    g.ok = M.rayW.ok;
+    if (!g.ok) { g.two = false; return; }
+    g.pos.copy(M.gripW.ok ? M.gripW.pos : M.rayW.pos);
+    g.quat.copy(M.rayW.quat);
+    const vm = this.G.viewmodel && this.G.viewmodel.rig;
+    const sup = vm && typeof vm.xrSupport === 'function' ? vm.xrSupport() : null;
+    const gp = O.gamepad;
+    const gv = gp && gp.buttons && gp.buttons[1] ? gp.buttons[1].value || (gp.buttons[1].pressed ? 1 : 0) : 0;
+    const was = g.two;
+    if (!sup || !O.gripW.ok || !(p && p.alive) || (this.menu && this.menu.open)) g.two = false;
+    else if (g.two) { if (gv < 0.3 || O.gripW.pos.distanceTo(g.pos) > sup.len + GRAB_HOLD) g.two = false; }
+    else if (gv > 0.6) {
+      _v.copy(sup.off).applyQuaternion(g.quat).add(g.pos); // Vorderschaft bei einhändiger Haltung
+      if (O.gripW.pos.distanceTo(_v) < GRAB_R) g.two = true;
+    }
+    if (g.two !== was) { this._pulse(O, g.two ? 0.3 : 0.1, g.two ? 25 : 10); this.G.events.emit('xr:twohand', { on: g.two }); }
+    if (g.two && sup.steer) {
+      const dW = _v.subVectors(O.gripW.pos, g.pos);
+      if (dW.lengthSq() > 0.0025) {
+        dW.normalize();
+        const up = _v2.set(0, 1, 0).applyQuaternion(M.rayW.quat);
+        frameQuat(_f.copy(sup.off).normalize(), _v3.set(0, 1, 0), _qa);
+        frameQuat(dW, up, g.quat);
+        g.quat.multiply(_qa.invert());
+      }
+    }
+    g.dir.set(0, 0, -1).applyQuaternion(g.quat);
   }
 
   /** Je XR-Bild nach der Simulation: Kamera/Hände (auch in der Pause), Overlay, Handgelenk, Zielpunkt, Menü. */
@@ -733,13 +846,71 @@ export class XRSystem {
       { id: 'vignette', label: () => `Vignette: ${S.get('vrVignette') ? 'an' : 'aus'}` },
       { id: 'drehen', label: () => `Drehen: ${S.get('vrTurn') === 'fluessig' ? 'flüssig' : `in Schritten (${S.get('vrTurnStep')}°)`}` },
       { id: 'hoehe', label: () => `Höhe kalibrieren${S.get('vrSeated') ? ' (sitzend)' : ' (gerade hinstellen)'}` },
+      { id: 'steuerung', label: 'Steuerung (Tastenbelegung)' },
       { id: 'beenden', label: 'VR beenden' },
     ];
-    this.menu.show('menu', this.eye, this.headQuat, { items, title: 'Menü', sub: this._matchLine() });
+    this._capture = null;
+    if (this.menu.open && this.menu.kind === 'steuerung') this.menu.setPage({ items, title: 'Menü', sub: this._matchLine() }, 'menu', 4);
+    else this.menu.show('menu', this.eye, this.headQuat, { items, title: 'Menü', sub: this._matchLine() });
     this._menuPrev.trig = this._menuPrev.a = true; // gehaltener Abzug klickt nicht sofort
   }
 
-  closeMenu() { if (this.menu && this.menu.open && this.menu.kind === 'menu') this.menu.hide(); }
+  closeMenu() { if (this.menu && this.menu.open && (this.menu.kind === 'menu' || this.menu.kind === 'steuerung')) { this.menu.hide(); this._capture = null; } }
+
+  /** Steuerungs-Seite (27.10.): Aktion wählen, dann die gewünschte Controller-Taste drücken (Tausch bei Doppelbelegung). */
+  _ctlItems() {
+    const S = this.G.settings;
+    const res = resolveBindings(S.get('bindings'));
+    const pages = Math.max(1, Math.ceil(CTL_ACTIONS.length / CTL_PAGE));
+    this._ctlPage = (this._ctlPage + pages) % pages;
+    const items = CTL_ACTIONS.slice(this._ctlPage * CTL_PAGE, (this._ctlPage + 1) * CTL_PAGE).map((a) => {
+      const def = ACTION_BY_ID[a];
+      const name = def ? def.short || def.label : a;
+      return { id: `ctl:${a}`, label: () => {
+        if (this._capture && this._capture.action === a) return `${name}: Taste drücken … ${Math.ceil(this._capture.t)}`;
+        const codes = (res.xr && res.xr[a]) || [];
+        return `${name}: ${codes.length ? codes.map((c) => codeLabel(c)).join(' / ') : '—'}`;
+      } };
+    });
+    items.push({ id: 'ctl:weiter', label: pages > 1 ? `Weitere Tasten (${this._ctlPage + 1}/${pages})` : 'Weitere Tasten' });
+    items.push({ id: 'ctl:standard', label: 'VR-Belegung zurücksetzen' });
+    items.push({ id: 'ctl:zurueck', label: 'Zurück' });
+    return items;
+  }
+
+  _openControls(focus = 0) {
+    const items = this._ctlItems();
+    const page = { items, title: 'Steuerung', sub: 'Eintrag wählen, dann die neue Taste am Controller drücken', note: CTL_NOTE };
+    if (this.menu.open) this.menu.setPage(page, 'steuerung', focus);
+    else this.menu.show('steuerung', this.eye, this.headQuat, page);
+  }
+
+  /** Tastenerfassung: erst alles loslassen, dann zählt die erste neue Taste beider Hände (XR_CODES). */
+  _pollCapture(dt) {
+    const c = this._capture;
+    if (!c) return false;
+    c.t -= dt;
+    if (c.t <= 0) { this._capture = null; this._openControls(this.menu.focus); return true; }
+    const now = new Map();
+    for (const [h, tag] of [[this.hands.main, 'H'], [this.hands.off, 'N']]) {
+      const gp = h.gamepad;
+      const b = gp && gp.buttons ? gp.buttons : [];
+      for (const i of [0, 1, 3, 4, 5]) now.set(`Xr${tag}${i}`, !!(b[i] && (b[i].pressed || (i < 2 && b[i].value > 0.55))));
+      if (tag === 'H') { const y = gp && gp.axes ? gp.axes[3] || 0 : 0; now.set('XrHUp', y < -0.7); now.set('XrHDown', y > 0.7); }
+    }
+    if (!c.armed) { if (![...now.values()].some(Boolean)) c.armed = true; return true; }
+    let code = null;
+    for (const [k, v] of now) if (v && !this._capPrev.get(k) && XR_CODES.includes(k)) { code = k; break; }
+    this._capPrev = now;
+    if (!code) return true;
+    const S = this.G.settings;
+    const res = setBinding(S.get('bindings'), 'xr', c.action, 0, code, { conflict: 'swap' });
+    if (res.ok) { S.set('bindings', res.overrides); this.G.events.emit('ui:sound', { name: 'confirm' }); this._pulse(this.hands.main, 0.3, 25); }
+    this._capture = null;
+    this._menuPrev.trig = this._menuPrev.a = true; // der Abzug, der gerade belegt wurde, wählt nicht gleich wieder
+    this._openControls(this.menu.focus);
+    return true;
+  }
 
   _matchLine() {
     const G = this.G;
@@ -754,6 +925,7 @@ export class XRSystem {
   _updateMenu(dt) {
     const menu = this.menu;
     if (!menu.open) return;
+    if (this._capture) { this._pollCapture(dt); menu.update(dt, null, false, 0); return; }
     if (menu.kind === 'menu') menu.sub = this._matchLine();
     else if (this._resultAt != null) menu.sub = `VR wird in ${Math.max(1, Math.ceil(this._resultAt - this.G.time.real))} s beendet …`;
     const M = this.hands.main;
@@ -781,6 +953,11 @@ export class XRSystem {
     else if (id === 'vignette') S.set('vrVignette', !S.get('vrVignette'));
     else if (id === 'drehen') S.set('vrTurn', S.get('vrTurn') === 'fluessig' ? 'schritt' : 'fluessig');
     else if (id === 'hoehe') this.calibrate();
+    else if (id === 'steuerung') { this._ctlPage = 0; this._openControls(0); }
+    else if (id === 'ctl:zurueck') this.openMenu();
+    else if (id === 'ctl:weiter') { this._ctlPage++; this._openControls(CTL_PAGE); }
+    else if (id === 'ctl:standard') { S.set('bindings', resetBindings(S.get('bindings'), 'xr')); this._openControls(this.menu.focus); }
+    else if (id.startsWith('ctl:')) { this._capture = { action: id.slice(4), t: CTL_CAPTURE, armed: false }; this._capPrev = new Map(); }
     else if (id === 'beenden' || id === 'jetzt') this.end();
   }
 
@@ -907,11 +1084,24 @@ export class XRSystem {
       supported: this.supported, enabled: this.enabled, presenting: this.presenting, ready: this.ready, space: this.space,
       rigYaw: this.rigYaw, calib: this.calib, stance: this._physStance, lean: p ? p.xrLean : 0, playerLean: p ? p.lean : 0,
       eye: this.eye.toArray(), aimDir: this.aimDir.toArray(), aimDist: this.aimDist,
-      hands: { main: this.hands.main.rayW.ok, off: this.hands.off.gripW.ok },
+      hands: { main: this.hands.main.rayW.ok, off: this.hands.off.gripW.ok }, twoHand: this.gun.two, holster: this._zone,
       menu: this.menu && this.menu.open ? this.menu.kind : null, wristDraws: this.wrist ? this.wrist.draws : 0, wristAmmo: this.wrist ? this.wrist.lastAmmo : '',
       vignette: this.overlay.uniforms.uVig.value, fade: this.overlay.fade,
     };
   }
+}
+
+const _v3 = new THREE.Vector3();
+const _qa = new THREE.Quaternion();
+const _fz = new THREE.Vector3(), _fy = new THREE.Vector3(), _fx = new THREE.Vector3(), _fm = new THREE.Matrix4();
+/** Drehung, deren −Z entlang f zeigt und deren +Y möglichst nach u (beide normiert/beliebig). */
+function frameQuat(f, u, out) {
+  const z = _fz.copy(f).negate().normalize();
+  const y = _fy.copy(u).addScaledVector(z, -u.dot(z));
+  if (y.lengthSq() < 1e-8) y.set(0, 1, 0).addScaledVector(z, -z.y);
+  y.normalize();
+  const xx = _fx.crossVectors(y, z);
+  return out.setFromRotationMatrix(_fm.makeBasis(xx, y, z));
 }
 
 /** Pose im Trackingraum → Welt (über das Rig). */

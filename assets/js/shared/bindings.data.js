@@ -107,7 +107,9 @@ export const DEFAULT_BINDINGS = deepFreeze({
   xr: {
     move_forward: [], move_back: [], move_left: [], move_right: [],
     sprint: ['XrN3'], jump: ['XrH4'], crouch: ['XrH5'], lean_left: [], lean_right: [],
-    fire: ['XrH0'], ads: ['XrH1'], reload: ['XrN4'], melee: ['XrH3'], grenade: ['XrN0'], tactical: ['XrN1'],
+    // 27.10.: Griff-Tasten gehören den Händen (Haupthand: Holster an Rücken/Hüfte, Nebenhand: Vorderschaft greifen) –
+    // Zielen geht in VR über das Heben der Waffe ans Auge; taktische Granate frei belegbar (VR-Menü → Steuerung)
+    fire: ['XrH0'], ads: [], reload: ['XrN4'], melee: ['XrH3'], grenade: ['XrN0'], tactical: [],
     swap: ['XrHUp'], slot1: [], slot2: [], light: [],
     streak1: [], streak2: [], streak3: [], streak4: [], interact: ['XrN4'], scoreboard: [], pause: ['XrN5'], fullscreen: [],
     prone: [], plate: ['XrHDown'], gadget: [], faehigkeit: [], bauen: [], verband: [], inspect: [], loadout: [], squad_order: [], befehl: [], unterlauf: [], feuermodus: [],

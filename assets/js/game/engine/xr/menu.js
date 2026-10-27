@@ -1,5 +1,6 @@
 // NULLPUNKT — kleines Menü in der Brille (engine/xr): Weiter · Vignette an/aus · Drehen Schritt/flüssig ·
-// Höhe kalibrieren · VR beenden. Außerdem die Ergebnistafel am Matchende („Sieg … VR wird beendet“).
+// Höhe kalibrieren · Steuerung · VR beenden. Außerdem die Ergebnistafel am Matchende („Sieg … VR wird beendet“) und die
+// Steuerungs-Seite (27.10.: Belegung der VR-Controller in der Brille ändern; mehr Zeilen → niedrigere Zeilen, Hinweiszeile unten).
 //
 // Eine Tafel (CanvasTexture 1024 × 640 auf 0,9 × 0,56 m) steht beim Öffnen 1,1 m vor dem Kopf und bleibt in der
 // Welt stehen. Zeigen mit dem Strahl der Haupthand (Laser + Lichtpunkt), Abzug wählt; alternativ Stick hoch/runter +
@@ -60,6 +61,8 @@ export class VrMenu {
     this.focus = 0;
     this.title = '';
     this.sub = '';
+    this.note = '';
+    this.rowH = ITEM_H;
     this._key = '';
   }
 
@@ -67,13 +70,8 @@ export class VrMenu {
    * Öffnen vor dem Kopf. kind 'menu' (Pausenmenü) oder 'result' (Matchende, title/sub vorgegeben).
    * items = [{ id, label }] (label darf eine Funktion sein: aktueller Wert).
    */
-  show(kind, head, headQuat, { items = [], title = '', sub = '' } = {}) {
-    this.kind = kind;
-    this.items = items;
-    this.title = title;
-    this.sub = sub;
-    this.hover = -1;
-    this.focus = 0;
+  show(kind, head, headQuat, { items = [], title = '', sub = '', note = '' } = {}) {
+    this.setPage({ items, title, sub, note }, kind);
     _f.set(0, 0, -1).applyQuaternion(headQuat);
     _f.y = 0;
     if (_f.lengthSq() < 1e-4) _f.set(0, 0, -1);
@@ -86,6 +84,20 @@ export class VrMenu {
     this.panel.updateMatrixWorld(true);
     g.visible = true;
     this.open = true;
+    this._key = '';
+  }
+
+  /** Inhalt tauschen, Tafel bleibt stehen (Seiten der Steuerung). */
+  setPage({ items = [], title = '', sub = '', note = '' } = {}, kind = this.kind, focus = 0) {
+    this.kind = kind;
+    this.items = items;
+    this.title = title;
+    this.sub = sub;
+    this.note = note;
+    this.hover = -1;
+    this.focus = Math.max(0, Math.min(items.length - 1, focus));
+    const room = H - HEAD_H - 14 - (note ? 64 : 0);
+    this.rowH = Math.min(ITEM_H, Math.floor(room / Math.max(1, items.length)));
     this._key = '';
   }
 
@@ -114,7 +126,7 @@ export class VrMenu {
           if (Math.abs(_p.x) <= PW / 2 && Math.abs(_p.y) <= PH / 2) {
             hit = true;
             const py = (PH / 2 - _p.y) / PH * H;
-            const i = Math.floor((py - HEAD_H) / ITEM_H);
+            const i = Math.floor((py - HEAD_H) / this.rowH);
             this.hover = i >= 0 && i < this.items.length ? i : -1;
             if (this.hover >= 0) this.focus = this.hover;
             this.cursor.position.copy(_p).applyMatrix4(this.panel.matrixWorld);
@@ -138,7 +150,7 @@ export class VrMenu {
     }
     // Zeichnen nur bei Änderung (Unterzeile mit der Restzeit setzt engine/xr/index.js)
     const labels = this.items.map((it) => (typeof it.label === 'function' ? it.label() : it.label));
-    const key = `${this.kind}|${this.title}|${this.sub}|${labels.join('|')}|${this.hover}|${this.focus}`;
+    const key = `${this.kind}|${this.title}|${this.sub}|${this.note}|${labels.join('|')}|${this.hover}|${this.focus}`;
     if (key !== this._key) { this._key = key; this._draw(labels); }
     return picked;
   }
@@ -161,16 +173,35 @@ export class VrMenu {
     c.font = `500 30px ${FONT}`;
     c.fillStyle = 'rgba(255,255,255,0.7)';
     c.fillText(this.sub || '', 48, 128);
+    const rh = this.rowH, fs = Math.round(Math.min(42, rh * 0.46));
     labels.forEach((l, i) => {
-      const y = HEAD_H + i * ITEM_H;
+      const y = HEAD_H + i * rh;
       const on = i === this.hover || (this.hover < 0 && i === this.focus);
       c.fillStyle = on ? 'rgba(255, 91, 31, 0.9)' : 'rgba(255,255,255,0.08)';
-      roundRect(c, 40, y + 8, W - 80, ITEM_H - 16, 18);
+      roundRect(c, 40, y + Math.min(8, rh * 0.09), W - 80, rh - Math.min(16, rh * 0.18), Math.min(18, rh * 0.25));
       c.fill();
       c.fillStyle = '#ffffff';
-      c.font = `600 42px ${FONT}`;
-      c.fillText(l, 72, y + ITEM_H / 2 + 14);
+      c.font = `600 ${fs}px ${FONT}`;
+      // „Name: Wert“ → Wert rechtsbündig
+      const k = l.lastIndexOf(': ');
+      if (k > 0 && this.kind === 'steuerung') {
+        c.fillText(l.slice(0, k), 72, y + rh / 2 + fs * 0.34);
+        c.textAlign = 'right';
+        c.fillStyle = 'rgba(255,255,255,0.85)';
+        c.fillText(l.slice(k + 2), W - 72, y + rh / 2 + fs * 0.34);
+        c.textAlign = 'left';
+      } else c.fillText(l, 72, y + rh / 2 + fs * 0.34);
     });
+    if (this.note) {
+      c.font = `500 26px ${FONT}`;
+      c.fillStyle = 'rgba(255,255,255,0.72)';
+      const words = this.note.split(' ');
+      let line = '', yy = H - 52;
+      const lines = [];
+      for (const w of words) { const t = line ? `${line} ${w}` : w; if (c.measureText(t).width > W - 96 && line) { lines.push(line); line = w; } else line = t; }
+      if (line) lines.push(line);
+      lines.slice(0, 2).forEach((t, i) => c.fillText(t, 48, yy + i * 30 - (lines.length > 1 ? 14 : 0)));
+    }
     this.texture.needsUpdate = true;
   }
 

@@ -28,14 +28,28 @@ Grafik auf der Quest: automatisch Stufe „Niedrig“, Auflösung 80 %, Foveated
 
 Ohne VR-fähigen Browser zeigt der Abschnitt „VR (Beta)“ nur einen Hinweis statt des Schalters.
 
-## Steuerung (Standard, frei belegbar unter Belegung → VR-Controller)
+## Steuerung (Standard, frei belegbar unter Belegung → VR-Controller und im VR-Menü → Steuerung)
+
+**Hände und Waffen (27.10., nach dem ersten Test an der Quest):**
+- Hände: Handschuhe + Unterarm der Ego-Arme an beiden Controllern (Oberarm/Ellbogen aus). Die Waffenhand umfasst den
+  Griff, die freie Nebenhand liegt locker um den Controller und schließt sich mit Griff-Taste/Abzug zur Faust.
+- Beidhändig: Nebenhand an den Vorderschaft (≤ 16 cm) + **N Griff halten** → Langwaffen zeigen vom Griff zur
+  Nebenhand (Kippen um den Lauf folgt der Haupthand); Pistolen: Nebenhand umfasst nur. Loslassen oder > 40 cm löst.
+- Holster: **H Griff** mit der Haupthand über der Schulter/hinter dem Kopf = Hauptwaffe ziehen, an der Hüfte der
+  Waffenseite = Pistole. Beim Hineingreifen kurze Vibration. Stick hoch wechselt weiterhin.
+- Echtes Gehen 1:1 (Einstellung „Echtes Gehen 1:1“, Standard an): der Körper bleibt unter dem Kopf, Lehnen dann nur
+  über Kopfneigen. Aus: seitlicher Kopfversatz lehnt (wie vorher).
+- „Waffe ruhiger halten“ (Standard an): adaptive Glättung der Laufdrehung – in Ruhe stark, beim Schwenken kaum.
+- Griff-Tasten gehören damit den Händen: Zielen über Anheben ans Auge, taktische Granate standardmäßig frei.
 
 H = Haupthand (Waffe; Einstellung „Haupthand“, Standard rechts), N = Nebenhand.
 
 | Aktion | Taste |
 |---|---|
 | Feuern | H Abzug |
-| Zielen (Anlegen) | H Griff halten – **oder Waffe ans Auge heben** (Strahl ≤ 7 cm am Kopf vorbei, < 25° zur Blickrichtung) |
+| Zielen (Anlegen) | **Waffe ans Auge heben** (Lauf ≤ 8 cm am Kopf vorbei, < 25° zur Blickrichtung) |
+| Waffe ziehen (Holster) | H Griff an Rücken (Hauptwaffe) / Hüfte (Pistole) |
+| Vorderschaft greifen | N Griff am Vorderschaft halten |
 | Springen / Überklettern | H A/X (untere Taste) |
 | Ducken (halten: Hinlegen) | H B/Y (obere Taste) |
 | Nahkampf | H Stick drücken |
@@ -45,7 +59,7 @@ H = Haupthand (Waffe; Einstellung „Haupthand“, Standard rechts), N = Nebenha
 | Laufen | N Stick (Blick- oder Controller-Richtung) |
 | Sprinten | N Stick drücken |
 | Granate | N Abzug |
-| Taktische Granate | N Griff |
+| Taktische Granate | frei (VR-Menü → Steuerung) |
 | Nachladen / Interagieren | N A/X |
 | **VR-Menü** | N B/Y (rechtshändig: Y links) |
 
@@ -54,7 +68,8 @@ schieben oder neigen = lehnen (an Wänden begrenzt wie das normale Lehnen), echt
 (mit Kollision). „Sitzend spielen“ schaltet echtes Ducken/Hinlegen ab (Sitzhöhe = Stehen).
 
 VR-Menü in der Brille (Zeigen mit der Haupthand + Abzug, oder Stick hoch/runter + A): Weiter · Vignette an/aus ·
-Drehen Schritt/flüssig · Höhe kalibrieren · VR beenden. Lobby, Endbildschirm und alle Einstellungen bleiben 2D: am
+Drehen Schritt/flüssig · Höhe kalibrieren · Steuerung (Eintrag wählen, dann die neue Taste drücken; Tausch bei
+Doppelbelegung; „VR-Belegung zurücksetzen“) · VR beenden. Lobby, Endbildschirm und alle Einstellungen bleiben 2D: am
 Matchende zeigt die Brille 4 s das Ergebnis, dann endet VR automatisch.
 
 Anzeigen in VR: Handgelenk der Nebenhand (Leben, Platten, Munition, Granaten, Stand, Zeit, letzte 3 Abschüsse,

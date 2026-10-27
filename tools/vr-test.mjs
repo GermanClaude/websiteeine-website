@@ -178,7 +178,8 @@ try {
   await G((h) => { __iwer.position.y = h; }, h0);
   if (await until('Aufstehen (Headset hoch)', () => window.__game.player.stance === 'stand' && !window.__game.player.crouching, null, 60000)) pass('Aufstehen (Headset hoch)');
 
-  // Lehnen: Kopf 30 cm zur Seite
+  // Lehnen: Kopf 30 cm zur Seite (nur ohne echtes Gehen 1:1 – sonst geht der Körper mit, 27.10.)
+  await G(() => __game.settings.set('vrRoomScale', false));
   const x0 = await G(() => __iwer.position.x);
   await G((x) => { __iwer.position.x = x + 0.3; }, x0);
   if (await until('Lehnen (Kopf seitlich)', () => window.__game.player.lean > 0.3, null, 60000)) {
@@ -186,6 +187,7 @@ try {
   }
   await G((x) => { __iwer.position.x = x; }, x0);
   await until('Lehnen zurück', () => Math.abs(window.__game.player.lean) < 0.15, null, 60000);
+  await G(() => __game.settings.set('vrRoomScale', true));
   // Lehnen: Kopf nach links neigen (Rollen 30°)
   await G(() => { const a = 30 * Math.PI / 180; __iwer.quaternion.set(0, 0, Math.sin(a / 2), Math.cos(a / 2)); });
   if (await until('Lehnen (Kopf geneigt)', () => window.__game.player.lean < -0.3, null, 60000)) {

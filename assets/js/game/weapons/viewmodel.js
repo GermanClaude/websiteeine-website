@@ -907,6 +907,53 @@ export class ViewModel {
     if (act) { P.x += act.p[0]; P.y += act.p[1]; P.z += act.p[2]; R.x += act.r[0]; R.y += act.r[1]; R.z += act.r[2]; }
   }
 
+  /**
+   * VR (27.10.): Stützgriff (Vorderschaft) relativ zum Pistolengriff im Waffenraum – für beidhändiges Halten (engine/xr).
+   * → { off: Vector3, len, steer } | null (Pistole/Messer ohne Stützgriff). steer: die Stützhand führt die Laufrichtung
+   * (Langwaffen); bei Pistolen umfasst sie nur die Schusshand.
+   */
+  xrSupport() {
+    const e = this.cur, h = this.h;
+    if (!e || !h || !e.ud.leftHandGrip || h.leftGrip === 'none' || h.action === 'knife') return null;
+    if (!e.xrSupport) {
+      const m = new THREE.Matrix4();
+      for (let o = e.ud.leftHandGrip; o && o !== this.gun; o = o.parent) { o.updateMatrix(); m.premultiply(o.matrix); }
+      const off = new THREE.Vector3().setFromMatrixPosition(m).sub(this._gripOffset(e));
+      e.xrSupport = { off, len: off.length(), steer: h.action !== 'pistol' && h.action !== 'revolver' && off.length() > 0.1 };
+    }
+    return e.xrSupport;
+  }
+
+  /** VR: Schultern aus der Kopfpose (Welt → Wurzelraum) für den Unterarm-Löser. */
+  _xrShoulders(xr) {
+    const t = this._xrTmp || (this._xrTmp = new THREE.Vector3());
+    if (xr.shoulderWorld(1, t)) this.arms.right.shoulder.copy(this.root.worldToLocal(t));
+    if (xr.shoulderWorld(-1, t)) this.arms.left.shoulder.copy(this.root.worldToLocal(t));
+  }
+
+  /**
+   * VR: freie Nebenhand am Controller (nicht am Vorderschaft) – Handgelenk hinter dem Griffpunkt, Finger entlang des
+   * Controllers, Handrücken nach außen; Faust nach Griff-Taste/Abzug. → false ohne verfolgte Nebenhand.
+   */
+  _xrOffTarget(xr, T) {
+    const O = xr.hands.off;
+    if (!O.gripW.ok) return false;
+    const q = O.rayW.ok ? O.rayW.quat : O.gripW.quat;
+    const sx = xr.offSide === 'right' ? 1 : -1;
+    const F = _v.set(0, -0.3, -1).normalize().applyQuaternion(q);
+    const B = _v2.set(0.85 * sx, 0.5, 0.1).normalize().applyQuaternion(q);
+    T.pos.copy(O.gripW.pos).addScaledVector(F, -0.075).addScaledVector(B, -0.012);
+    this.root.worldToLocal(T.pos);
+    _q.copy(this.root.quaternion).invert();
+    F.applyQuaternion(_q); B.applyQuaternion(_q);
+    basis([F.x, F.y, F.z], [B.x, B.y, B.z], T.quat);
+    const b = O.gamepad && O.gamepad.buttons ? O.gamepad.buttons : [];
+    // locker um den Controller gelegt (0,35), Griff-Taste/Abzug schließen zur Faust
+    const w = clamp(0.35 + 0.65 * Math.max(b[1] ? b[1].value || 0 : 0, (b[0] ? b[0].value || 0 : 0) * 0.6), 0, 1);
+    mixPose(getPose('relaxed'), getPose('fist'), w, T.pose);
+    return true;
+  }
+
   /** VR, Simulation steht (Pause, Matchende): Waffe der Hand nachführen, ohne Animationen fortzuschreiben. */
   syncXr() {
     if (!this.cur || !this._xrRoot()) return;
@@ -1007,7 +1054,12 @@ export class ViewModel {
       this.camera.updateMatrixWorld();
       this.camera.matrixWorld.decompose(this.root.position, this.root.quaternion, _s1);
     }
-    if (vr !== !!this._armsHiddenVr) { this._armsHiddenVr = vr; this.arms.group.visible = !vr; } // VR: die echten Hände halten die Waffe
+    // VR (27.10., Nutzer: „keine Hände sichtbar“): Handschuhe + Unterarm an den Controllern; Oberarm/Ellbogen aus (ohne
+    // Körper-Tracking wirken ganze Arme falsch), Unterarm genau in Handachse
+    if (vr !== !!this._armsVr) {
+      this._armsVr = vr;
+      for (const A of [this.arms.right, this.arms.left]) { A.upper.visible = !vr; A.elbow.visible = !vr; A.align = vr ? 1 : 0.7; A.group.visible = true; }
+    }
     if (this._pending && (!this.cur || !this._lowering)) this._swapNow();
     if (!this.cur) return;
     const h = this.h;
@@ -1351,6 +1403,8 @@ export class ViewModel {
     const ud = this.cur.ud, h = this.h;
     const R = this._hR, L = this._hL;
     this._contactFrame = (this._contactFrame || 0) + 1;
+    const xr = this._vrOn ? this.G.xr : null;
+    if (xr && typeof xr.shoulderWorld === 'function') this._xrShoulders(xr);
     // Rechte Hand: Pistolengriff (Messer: Faustgriff)
     const rStyle = h.action === 'knife' ? 'knife' : 'pistolGrip';
     this._anchorTarget(ud.rightHandGrip, rStyle, ud.rightHandGrip.userData, R, 1);
@@ -1375,6 +1429,14 @@ export class ViewModel {
     this.arms.right.solve(R.pos, R.quat);
     // Requisiten in der rechten Hand (Granate) für den Splint-Griff aktualisieren
     this.arms.right.handBone.updateWorldMatrix(true, true);
+    // VR: Nebenhand frei am Controller, solange sie den Vorderschaft nicht greift (engine/xr gun.two)
+    if (xr && !(xr.gun && xr.gun.two)) {
+      const ok = this._xrOffTarget(xr, L);
+      this.arms.left.group.visible = ok;
+      if (ok) { this.arms.left.applyPose(L.pose); this.arms.left.solve(L.pos, L.quat); }
+      return;
+    }
+    if (xr) this.arms.left.group.visible = true;
     // Linke Hand: Stützgriff
     const lg = ud.leftHandGrip, style = lg.userData.style || h.leftGrip;
     if (h.leftGrip === 'none') this._freeTarget([-0.12, -0.34, -0.22], [0.3, 0.6, -0.8], [-0.6, 0.2, 0.3], 'relaxed', L);
