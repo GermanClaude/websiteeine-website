@@ -6,7 +6,8 @@
 // (Echte Tunnel unter der Erde kann ein Höhenfeld nicht darstellen – gegraben wird von oben.)
 import * as THREE from 'three';
 
-const R = 1.6, DY = 0.4, MAX = 60, REACH = 3.4;
+// MAX 27.10.: 6 m unter Gelände (vorher 60 m) – tiefer reichte die Karte nicht (Unterkante, Wasser), man fiel hindurch
+const R = 1.6, DY = 0.4, MAX = 6, REACH = 3.4;
 const _n = new THREE.Vector3(0, 1, 0);
 // Explosionskrater je Sprengsatz: Radius, Tiefe (m) bei Detonation am Boden; höher in der Luft → kleiner/flacher
 const CRATER = {

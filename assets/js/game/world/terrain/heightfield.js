@@ -73,12 +73,19 @@ export class Heightfield {
     }
     if (!changed) return null;
     // Wände nicht steiler als ≈ 50°: Nachbarpunkte höchstens maxStep auseinander (sonst rutscht die Kapsel durch)
-    const maxStep = 1.2 * res;
-    const a0 = Math.max(1, i0 - 3), a1 = Math.min(n - 2, i1 + 3), b0 = Math.max(1, j0 - 3), b1 = Math.min(n - 2, j1 + 3);
-    for (let it = 0; it < 4; it++) for (let j = b0; j <= b1; j++) for (let i = a0; i <= a1; i++) {
-      const o = j * n + i;
+    // 27.10.: Rand so breit wie die größte Tiefe es verlangt und abwechselnde Durchläufe bis alles passt – vorher nur
+    // 3 Punkte/4 Durchläufe: ab ≈ 6 m Tiefe entstand eine senkrechte Stufe, durch die man fiel/hindurchsah.
+    const maxStep = 1.2 * res, m = Math.min(16, Math.ceil((maxDepth + 0.3) / maxStep) + 2);
+    const a0 = Math.max(1, i0 - m), a1 = Math.min(n - 2, i1 + m), b0 = Math.max(1, j0 - m), b1 = Math.min(n - 2, j1 + m);
+    const relax = (o) => {
       const lo = Math.min(H[o - 1], H[o + 1], H[o - n], H[o + n]);
-      if (H[o] - lo > maxStep) { const nh = lo + maxStep; if (nh < H[o]) H[o] = Math.max(this._orig[o] - maxDepth - 0.3, nh); }
+      if (H[o] - lo > maxStep) { const nh = Math.max(this._orig[o] - maxDepth - 0.3, lo + maxStep); if (nh < H[o] - 1e-5) { H[o] = nh; return true; } }
+      return false;
+    };
+    for (let it = 0, moved = true; moved && it < 2 * m + 4; it++) {
+      moved = false;
+      if (it & 1) { for (let j = b1; j >= b0; j--) for (let i = a1; i >= a0; i--) moved = relax(j * n + i) || moved; }
+      else { for (let j = b0; j <= b1; j++) for (let i = a0; i <= a1; i++) moved = relax(j * n + i) || moved; }
     }
     i0 = a0; i1 = a1; j0 = b0; j1 = b1;
     // Blockgrenzen der berührten Blöcke neu bestimmen
@@ -90,7 +97,7 @@ export class Heightfield {
       this.bmax[bj * nb + bi] = mx; this.bmin[bj * nb + bi] = mn;
       if (mn < this.minH) this.minH = mn;
     }
-    return { minX: x - r - 4 * res, minZ: z - r - 4 * res, maxX: x + r + 4 * res, maxZ: z + r + 4 * res };
+    return { minX: x - r - (m + 1) * res, minZ: z - r - (m + 1) * res, maxX: x + r + (m + 1) * res, maxZ: z + r + (m + 1) * res };
   }
 
   /** Höhe am Stützpunkt (geklemmt). */
