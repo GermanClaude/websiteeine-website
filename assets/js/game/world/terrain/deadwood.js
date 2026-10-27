@@ -15,6 +15,8 @@ const DEAD_LOD = { low: [40, 95, 210], medium: [60, 140, 260], high: [90, 190, 3
 const NEAR_CAP = { low: 200, medium: 450, high: 700, ultra: 900 };
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(), _p = new THREE.Vector3();
 const _e = new THREE.Euler(), _c = new THREE.Color(), _v = new THREE.Vector3(), _up = new THREE.Vector3(0, 1, 0);
+/** Tönung (linear) der Wurzelteller-Erde: etwas dunkler und grauer als die Grabenwände (#7a6a5a). */
+const ROOT_EARTH = [0.16, 0.13, 0.105];
 
 // ---------------------------------------------------------------------------
 // Geometrie-Sammler
@@ -219,6 +221,9 @@ export function logGeometry(o) {
     D.set(-0.3 - r() * 0.5, Math.sin(a) * 0.8, Math.cos(a) * 0.8).normalize();
     limb(M, 0, P0, D, 0.3 + r() * 0.9, 0.03 + r() * 0.05, 0.006, 4, 2, 0.1, 0.7);
   }
+  // 26.10. (K0, B5): Erde des Wurzeltellers wie die Grabenwände getönt (dunkler, verkohlter Lehm) – mit grauer
+  // Vertexfarbe leuchtete der Grabenlehm-Satz rostrot/orange aus der verbrannten Palette heraus
+  for (const k of [...front, ...back, cf, cb]) { M.C[k * 3] *= ROOT_EARTH[0]; M.C[k * 3 + 1] *= ROOT_EARTH[1]; M.C[k * 3 + 2] *= ROOT_EARTH[2]; }
   const rg = M.build();
   return mergeGrouped([g, rg]);
 }

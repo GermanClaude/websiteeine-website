@@ -60,7 +60,7 @@ class AtlasSource extends THREE.TextureSource {
  * Atlas-Textur (w × h), deren Inhalt draw(ctx, w, h) bei jedem Upload neu zeichnet. draw muss deterministisch
  * sein (eigener Zufallsstartwert), denn nach Kontextverlust oder dispose() wird erneut gezeichnet.
  */
-function atlasTexture(w, h, draw, { anisotropy = 4, name = 'atlas' } = {}) {
+export function atlasTexture(w, h, draw, { anisotropy = 4, name = 'atlas' } = {}) {
   const tex = new THREE.CanvasTexture(null);
   tex.source = new AtlasSource(w, h, draw);
   tex.needsUpdate = true;
@@ -275,7 +275,13 @@ export function createDecalMaterials(quality = 'high') {
   const base = { map: decalAtlas, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4, vertexColors: true };
   decalMats = {
     grime: new THREE.MeshStandardMaterial({ ...base, roughness: 0.92, metalness: 0 }),
-    wet: new THREE.MeshStandardMaterial({ ...base, color: '#3a3f44', roughness: 0.04, metalness: 0.1, envMapIntensity: 1.4 }),
+    // 26.10. (K0, Zwischenwerte bis T4 „Nässe“): Rauheit 0,04 → 0,34, ohne Metallanteil, Himmelsspiegelung auf 25 %
+    // (Shader-Haken unten) – vorher spiegelte jede Pfütze bei hellem Himmel als weißes Oval („Papier“) statt als dunkler
+    // Wasserfilm: Die Umgebungskarte ist nur der Himmel, flach gesehen (Fresnel) kam fast seine volle Helligkeit
+    // zurück, obwohl eine echte Pfütze dort meist Wände/Kisten spiegelt. envMapIntensity wirkt hier NICHT (three.js
+    // nimmt bei scene.environment ohne eigene envMap scene.environmentIntensity) – daher der Haken. Gemessen (Hafen
+    // k0-pfuetze, gleiche Kamera): Sonnenglanz unerheblich, Umgebung 0 per Material ohne Wirkung, Rauheit 1 → Oval weg
+    wet: new THREE.MeshStandardMaterial({ ...base, color: '#3a3f44', roughness: 0.34, metalness: 0 }),
     paint: new THREE.MeshStandardMaterial({ ...base, roughness: 0.75, metalness: 0 }),
     // Lichtkegel am Boden (unbeleuchtet, additiv): Lampenpools ohne echte Punktlichter (auch auf low)
     light: new THREE.MeshBasicMaterial({ ...base, blending: THREE.AdditiveBlending }),
@@ -292,6 +298,11 @@ export function createDecalMaterials(quality = 'high') {
       #endif`);
   };
   decalMats.light.customProgramCacheKey = () => 'decal-light-v1';
+  // Pfützen: Himmelsspiegelung dämpfen (sonst flach gesehen ein gleichmäßig helles Oval statt dunklem Wasserfilm)
+  decalMats.wet.onBeforeCompile = (sh) => {
+    sh.fragmentShader = sh.fragmentShader.replace('#include <aomap_fragment>', '#include <aomap_fragment>\n\treflectedLight.indirectSpecular *= 0.25;');
+  };
+  decalMats.wet.customProgramCacheKey = () => 'decal-wet-v2';
   for (const [k, m] of Object.entries(decalMats)) { m.name = 'decal_' + k; m.userData.surface = 'concrete'; }
   return decalMats;
 }

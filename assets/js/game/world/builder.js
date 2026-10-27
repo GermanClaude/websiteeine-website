@@ -2,6 +2,7 @@
 // backt Ambient Occlusion in Vertexfarben, erzeugt Kollisions- und Kugel-Geometrie (Owner: world)
 import * as THREE from 'three';
 import { getMaterial, surfaceOf, preloadMaterials, proceduralNames, libraryPendingNames, materialAlbedo } from '../engine/textures.js';
+import { applyGrateFade } from './gitterrost.js';
 import { createDecalMaterials, createSignAtlas, createFoliage, DECAL_CELLS, DECAL_ROWS, DEFAULT_SIGNS } from './atlas.js';
 import { PropInstances, placementMatrix, forEachBulletTri, MODEL_SURFACE } from './libprops.js';
 import { assets } from '../../../lib/loader.js';
@@ -894,6 +895,7 @@ export class MapBuilder {
       // Container-Wellblech (3 cm tiefe Sicken) nicht in den AO-Vorpass: halbe AO-Auflösung erzeugt darauf Treppenmuster;
       // der glatte Innenkörper dahinter verdeckt stattdessen (props.js container3d)
       if (mat === 'ctr_lack') mesh.userData.noAO = true;
+      if (mat === 'metal_grate') applyGrateFade(material); // 26.10. (K0): kein Moiré-Rauschen in der Ferne (gitterrost.js)
       group.add(mesh);
       meshes.push(mesh);
       return mesh;

@@ -53,6 +53,8 @@ const FORSTWEG = [[-205, 26], [-160, 8], [-118, -16], [-80, -16], [-40, -4], [-4
 const FRONT_A = sampleSpline(TRENCHES[0].pts, 1.5), FRONT_B = sampleSpline(TRENCHES[TRENCHES.length / 2].pts, 1.5);
 const NESTS = [-150, -82, -5, 75, 150].flatMap((x) => [[x, lineZ(FRONT_A, x) + 9.5, Math.PI], [-x, lineZ(FRONT_B, -x) - 9.5, 0]]);
 const WRECKS = [[30, -8, 1.75, 'lkw'], [-52, 16, 1.4, 'pkw'], [140, -12, 2.9, 'lkw'], [-160, 64, 0.4, 'pkw']];
+// 26.10. (K0, B5): Säcke der MG-Stellungen ruß- und schlammverschmiert wie die Grabensäcke (vorher frisches Ocker)
+const NEST_TINTS = ['#6f685a', '#645e52', '#787060', '#5c564b'];
 
 // Stromtrasse (Masten alle ≈ 70 m, quer durch das Niemandsland)
 export const POWER_LINE = [[-300, -70], [-215, -48], [-140, -28], [-70, -8], [0, 10], [72, 30], [145, 50], [220, 70], [300, 92]];
@@ -134,7 +136,7 @@ export default {
   ],
   lateSites: [
     { id: 'front', name: 'Gräben', bounds: { minX: -180, maxX: 180, minZ: -180, maxZ: 180 }, chunkSize: 60, build: (b, ctx) => trenchWorks(b, ctx, TRENCHES, { front: FRONT }) },
-    { id: 'boden', name: 'Pfützen und Draht', bounds: { minX: -180, maxX: 180, minZ: -180, maxZ: 180 }, chunkSize: 60, build: (b, ctx) => groundDetails(b, ctx, { area: { minX: -176, maxX: 176, minZ: -176, maxZ: 176 }, avoid: TRENCHES.map((t) => [t.pts, (t.width ?? 2) / 2 + (t.revet || 0) + 3]), wire: [{ z: FRONT - 13, x0: -165, x1: 165 }, { z: -FRONT + 13, x0: -165, x1: 165 }], wrecks: WRECKS, nests: NESTS }) },
+    { id: 'boden', name: 'Pfützen und Draht', bounds: { minX: -180, maxX: 180, minZ: -180, maxZ: 180 }, chunkSize: 60, build: (b, ctx) => groundDetails(b, ctx, { area: { minX: -176, maxX: 176, minZ: -176, maxZ: 176 }, avoid: TRENCHES.map((t) => [t.pts, (t.width ?? 2) / 2 + (t.revet || 0) + 3]), wire: [{ z: FRONT - 13, x0: -165, x1: 165 }, { z: -FRONT + 13, x0: -165, x1: 165 }], wrecks: WRECKS, nests: NESTS, nestTints: NEST_TINTS }) },
     { id: 'leitung', name: 'Stromtrasse', bounds: { minX: -320, maxX: 320, minZ: -200, maxZ: 200 }, chunkSize: 80, build: (b, ctx) => pylonLine(b, ctx, POWER_LINE, { fallen: 4 }) },
   ],
 

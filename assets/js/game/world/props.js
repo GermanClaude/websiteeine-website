@@ -57,7 +57,7 @@ export const CONTAINER_COLORS = ['#b8392c', '#2d5f94', '#3e7a4c', '#d9762a', '#8
  * Grafik-Vorlage (15.10.): Containerlack wie im Video – verwittert und gedeckt (Rostrot, verblasstes Blau, Oliv,
  * Braunorange, Grauweiß) statt Spielzeugfarben; Lila wird Rotbraun, Gelb Ocker. Zufallsfolge (b.pick) bleibt gleich.
  */
-function videoTone(hex) {
+export function videoTone(hex) {
   const c = new THREE.Color(hex), hsl = {};
   c.getHSL(hsl);
   let h = hsl.h * 360;
@@ -91,7 +91,7 @@ export function ctrFamily(hex) {
  * UV in Metern (u entlang x, v entlang y). Gecacht je Maß.
  */
 export const CTR_PROFILE = { a: 0.26, f: 0.245, i: 0.25 };
-function corrPanel(w, h, { pitch = 0.278, depth = 0.036, dir = 'v', flatTop = 0, flatBottom = 0, center = false } = {}) {
+export function corrPanel(w, h, { pitch = 0.278, depth = 0.036, dir = 'v', flatTop = 0, flatBottom = 0, center = false } = {}) {
   return cached(`corr:${w.toFixed(3)}:${h.toFixed(3)}:${pitch}:${depth}:${dir}:${flatTop}:${flatBottom}:${center}`, () => {
     const P = [], N = [], U = [];
     const along = dir === 'v' ? w : h - flatTop - flatBottom;
@@ -479,7 +479,8 @@ export function sandbags(b, x0, z0, x1, z1, o = {}) {
   const L = Math.hypot(x1 - x0, z1 - z0), ry = Math.atan2(-(z1 - z0), x1 - x0);
   const ux = (x1 - x0) / L, uz = (z1 - z0) / L;
   const depth = o.double ? 2 : 1;
-  const tints = ['#b8a87f', '#a99a72', '#c2b28a', '#9e9070'];
+  // o.tints: eigene Jute-Tönungen (z. B. Brandwald: ruß-/schlammverschmiert); b.pick verbraucht je Sack genau eine Ziehung
+  const tints = o.tints || ['#b8a87f', '#a99a72', '#c2b28a', '#9e9070'];
   for (let r = 0; r < rows; r++) {
     const off = r % 2 ? 0.27 : 0;
     const n = Math.floor((L - off) / 0.54);

@@ -5,7 +5,7 @@
 // Alles deterministisch (kein Math.random, Varianten nur positionsabhängig über hash01). Kollision hängt weder von der
 // Grafikstufe noch von der Bibliothek ab: Bibliotheksmodelle bekommen feste Quader in Manifest-Maßen.
 import * as THREE from 'three';
-import { frame, hash01, chair, crate, pallet, cable, CONTAINER_H, CONTAINER_W, ctrFamily } from '../props.js';
+import { frame, hash01, chair, crate, pallet, cable, CONTAINER_H, CONTAINER_W, ctrFamily, corrPanel, videoTone } from '../props.js';
 
 const KEIN = { collide: false, minimap: false };
 const VG = { ...KEIN, grad: false };
@@ -232,16 +232,31 @@ export function offenerContainer(b, x, z, o = {}) {
   const dark = shade(color, 0.72), innen = shade(color, axis ? 0.55 : 0.36);
   const L2 = len / 2, W2 = W / 2, t = 0.06, fl = 0.16;
   const V = { ...KEIN, uv: 'local' };
-  // Außenhaut/Türflügel: Videotextur der Lackfamilie (wie props.container), Innenhaut weiter getönt
+  // Außenhaut/Türflügel: ab „mittel“ Trapez-Wellblech als Geometrie wie die geschlossenen Container (props.container3d:
+  // corrPanel + getönter Containerlack; 26.10., K0 – vorher die alte 2D-Videotextur, die sich auf der 6-m-Fläche als
+  // gelb-grüne „Bambus“-Streifen las). Telefon (low) wie props.container: Videotextur. Innenhaut weiter getönt.
+  const d3 = b.quality !== 'low';
   const wall = 'ctr_' + ctrFamily(color), VW = { ...KEIN, uv: 'local', uvOffset: [0, 0] };
-  // Außenhaut + dunklere Innenhaut (Seiten, Stirnwand, Dach)
+  // Lackton wie die geschlossenen Container (props.container: videoTone, gedeckt statt Spielzeugfarbe); Paneele ohne
+  // Schatten (Sicken flimmern in der Schattenkarte) – den Schatten wirft die Innenhaut dahinter
+  const lack = videoTone(color);
+  const CL = { ...KEIN, cast: false, uv: 'keep', tint: lack, uvOffset: [hash01(x, z, 41) * 2.44, hash01(x, z, 42) * 2.44] };
+  const wallW = len - 0.24, wallH = H - 0.16;
+  // Außenhaut + dunklere Innenhaut (Seiten, Stirnwand, Dach). Wellblech: Außenkante 5 mm hinter der Hülle, Täler
+  // (3,6 cm) enden vor der Innenhaut
   for (const s of [-1, 1]) {
-    f.box(0, 0.05, s * (W2 - 0.03), len - 0.12, H - 0.11, 0.03, wall, { ...VW, aoFloor: 0 });
+    if (d3) f.geom(corrPanel(wallW, wallH), 0, 0.08, s * (W2 - 0.005), 'ctr_lack', { ...CL, aoFloor: 0, grad: true, ry: s < 0 ? Math.PI : 0 });
+    else f.box(0, 0.05, s * (W2 - 0.03), len - 0.12, H - 0.11, 0.03, wall, { ...VW, aoFloor: 0 });
     f.box(-0.03, fl, s * (W2 - t + 0.012), len - 0.3, H - fl - 0.12, 0.012, 'container', { tint: innen, ...V, grad: false });
   }
-  f.box(-L2 + 0.04, 0.05, 0, 0.03, H - 0.11, W - 0.1, wall, { ...VW, aoFloor: 0 });
+  if (d3) f.geom(corrPanel(W - 0.3, wallH), -(L2 - 0.005), 0.08, 0, 'ctr_lack', { ...CL, aoFloor: 0, grad: true, ry: -Math.PI / 2 });
+  else f.box(-L2 + 0.04, 0.05, 0, 0.03, H - 0.11, W - 0.1, wall, { ...VW, aoFloor: 0 });
   f.box(-L2 + t + 0.01, fl, 0, 0.012, H - fl - 0.12, W - 2 * t, 'container', { tint: innen, ...V, grad: false });
-  f.box(0, H - 0.07, 0, len - 0.12, 0.04, W - 0.08, wall, { ...VW, grad: false });
+  if (d3) {
+    // Dach: flache Quersicken wie container3d; darunter eine dünne glatte Platte (Kantenabschluss, Schatten)
+    f.geom(corrPanel(len - 0.3, W - 0.14, { pitch: 0.55, depth: 0.022, center: true }), 0, H - 0.012, 0, 'ctr_lack', { ...CL, tint: shade(lack, 0.92), rx: -Math.PI / 2 });
+    f.box(0, H - 0.075, 0, len - 0.14, 0.03, W - 0.1, 'metal_painted', { ...KEIN, tint: shade(lack, 0.8), uv: 'local', grad: false });
+  } else f.box(0, H - 0.07, 0, len - 0.12, 0.04, W - 0.08, wall, { ...VW, grad: false });
   f.box(-0.03, H - 0.1, 0, len - 0.3, 0.012, W - 2 * t, 'container', { tint: innen, ...V, grad: false });
   // Holzboden (Oberkante fl)
   f.box(0, 0.02, 0, len - 0.2, fl - 0.02, W - 2 * t, 'wood_planks', { tint: '#7a5a3c', ...VG });
@@ -258,8 +273,13 @@ export function offenerContainer(b, x, z, o = {}) {
   for (const s of [-1, 1]) {
     const hx = L2 + 0.03, hz = s * (W2 + 0.02), dx = Math.cos(phi), dz = s * Math.sin(phi);
     const cx = hx + dx * lw / 2, cz = hz + dz * lw / 2, rr = -s * phi;
-    f.box(cx, 0.06, cz, lw, H - 0.16, 0.05, wall, { ...VW, ry: rr, grad: false });
     const nx = -Math.sin(phi), nz = s * Math.cos(phi); // Außennormale des Flügels (um 90° + phi gedreht)
+    if (d3) {
+      // Flügel: Innenseite glatt (Lack), außen Wellblech mit waagrechten Sicken und glattem Kopf-/Fußfeld wie
+      // container3d; Täler (2,8 cm) liegen vor der Außenfläche des 5-cm-Blatts
+      f.box(cx, 0.06, cz, lw, H - 0.16, 0.05, 'metal_painted', { ...KEIN, ry: rr, uv: 'local', tint: shade(lack, 0.85), grad: false });
+      f.geom(corrPanel(lw, H - 0.16, { dir: 'h', pitch: 0.36, depth: 0.028, flatTop: 0.3, flatBottom: 0.14 }), cx + nx * 0.054, 0.06, cz + nz * 0.054, 'ctr_lack', { ...CL, ry: s > 0 ? rr : rr + Math.PI });
+    } else f.box(cx, 0.06, cz, lw, H - 0.16, 0.05, wall, { ...VW, ry: rr, grad: false });
     for (const k of [0.3, 0.75]) {
       const px = hx + dx * lw * k + nx * 0.045, pz = hz + dz * lw * k + nz * 0.045;
       f.cyl(px, 0.12, pz, 0.022, H - 0.3, 'metal_galvanized', { ...KEIN, seg: 6, ao: false });
