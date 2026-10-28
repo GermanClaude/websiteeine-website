@@ -23,6 +23,9 @@
 //   Ego-Arme (weapons/viewmodel.js) an den Controllern; Nebenhand greift mit der Griff-Taste den Vorderschaft und führt
 //   dann den Lauf (gun.two); Holster: Griff-Taste der Haupthand über der Schulter/hinter dem Kopf = Hauptwaffe, an der
 //   Hüfte = Pistole; echtes Gehen 1:1 (Einstellung vrRoomScale, Lehnen dann nur über Kopfneigen).
+// 28.10. (Nutzer): Waffe nur in der Hand, solange die Griff-Taste der Haupthand gehalten wird (vrGripHold) – loslassen →
+//   nach 0,25 s ins Holster (Hand leer, Feuern gesperrt), Griff an Rücken/Hüfte zieht die jeweilige, sonst die zuletzt
+//   benutzte Waffe. Langwaffen einhändig (vrTwoHand): Lauf hängt durch und wackelt, Streuung ×4, Anlegen nur beidhändig.
 // Bild: renderer.js zeichnet in VR ohne Nachbearbeitung (Welt + Waffe mit Welttiefe), main.js taktet per
 //   renderer.setAnimationLoop. Eigene VR-Grafikvorgabe: Quest-Browser Stufe „Niedrig“ + 80 % Auflösung, PC wie am
 //   Bildschirm + 100 %, Foveated Rendering 1, MSAA über den Kontext (renderer.js, Einstellung vrEnabled).
@@ -51,6 +54,12 @@ const RESULT_TIME = 4; // s Ergebnistafel, dann endet VR
 const GRAB_R = 0.16; // m Nebenhand ↔ Vorderschaft zum Greifen
 const GRAB_HOLD = 0.4; // m zusätzlicher Spielraum, bevor der Griff abreißt
 const ROOM_FWD = 0.04; // m Totzone für echtes Gehen 1:1
+const HOLSTER_DELAY = 0.25; // s Griff losgelassen → Waffe ins Holster
+const ONE_HAND_SPREAD = 4; // Streuung einer Langwaffe in einer Hand
+// mit leerer Hand gesperrt (Granaten der Nebenhand, Laufen, Springen … bleiben)
+const UNARMED_BLOCK = new Set(['fire', 'ads', 'reload', 'feuermodus', 'inspect', 'unterlauf', 'melee', 'swap']);
+const _eu = new THREE.Euler();
+const _qw = new THREE.Quaternion();
 // Steuerungs-Seite im VR-Menü: belegbare Aktionen (Reihenfolge = Wichtigkeit), 6 je Seite, Tastenerfassung 6 s
 const CTL_ACTIONS = ['fire', 'reload', 'swap', 'melee', 'grenade', 'tactical', 'jump', 'crouch', 'prone', 'sprint', 'interact', 'plate',
   'feuermodus', 'light', 'inspect', 'verband', 'gadget', 'faehigkeit', 'bauen', 'streak1', 'streak2', 'streak3', 'scoreboard'];
@@ -144,10 +153,13 @@ export class XRSystem {
     this.aimPoint = new THREE.Vector3();
     this.aimDist = AIM_RANGE;
     /** Pose der Waffe (Welt): Griff der Haupthand; Drehung = Zielstrahl bzw. beidhändig Richtung Nebenhand. */
-    this.gun = { pos: new THREE.Vector3(), quat: new THREE.Quaternion(), dir: new THREE.Vector3(0, 0, -1), ok: false, two: false };
+    this.gun = { pos: new THREE.Vector3(), quat: new THREE.Quaternion(), dir: new THREE.Vector3(0, 0, -1), ok: false, two: false, long: false };
     this.offSide = 'left';
     this._zone = null;
     this._mainGrip = false;
+    /** Waffe in der Haupthand (false: im Holster, Hand leer). */
+    this.armed = true;
+    this._relT = 0;
     this._aimFrame = -1;
     this._posedFrame = -1;
     this._poseKey = new Float64Array(7);
@@ -312,7 +324,9 @@ export class XRSystem {
     for (const h of [this.hands.main, this.hands.off]) { h.src = null; h.gamepad = null; h.grip.ok = h.ray.ok = h.gripW.ok = h.rayW.ok = false; }
     this.head.ok = false;
     this._preset(false);
-    if (G.player) G.player.xrLean = 0;
+    if (G.player) { G.player.xrLean = 0; G.player.xrSpreadMul = 1; }
+    this.armed = true;
+    if (G.input) G.input.xrBlock = null;
     if (G.input && typeof G.input.setXr === 'function') G.input.setXr(false);
     if (G.renderer && typeof G.renderer.resize === 'function') G.renderer.resize(true);
     this._syncButton();
@@ -452,8 +466,8 @@ export class XRSystem {
     }
     // Zielen: Waffe am Auge (zusätzlich zur Griff-Taste)
     if (typeof input.setXrPose === 'function') input.setXrPose('ads', p.alive && this._adsNear());
-    // Holster: Haupthand an Rücken/Hüfte + Griff-Taste → Waffe ziehen
-    this._holsters(p);
+    // Holster: Haupthand an Rücken/Hüfte + Griff-Taste → Waffe ziehen; Griff halten = Waffe halten
+    this._holsters(p, dt);
     // Countdown/Menü: echtes Gehen verschiebt den Körper nicht (die Welt gleitet mit), sonst wie Laufen
     this._body(dt, p, G.match.state !== 'playing');
   }
@@ -461,7 +475,8 @@ export class XRSystem {
   /** Waffe ans Auge gehoben? Strahl der Haupthand läuft ≤ 7 cm am Kopf vorbei, zeigt grob in Blickrichtung, Hand ≤ 55 cm vor dem Kopf. */
   _adsNear() {
     const g = this.gun;
-    if (!g.ok || !this.head.ok) return false;
+    if (!g.ok || !this.head.ok || !this.armed) return false;
+    if (g.long && !g.two && this.G.settings.get('vrTwoHand') !== false) return false; // Langwaffe: Anlegen nur beidhändig
     // Welt (Waffenpose des letzten Bildes – beidhändig zeigt der Lauf zur Nebenhand, nicht entlang des Controllers)
     const d = g.dir;
     const to = _v2.subVectors(this.eye, g.pos);
@@ -477,29 +492,58 @@ export class XRSystem {
    * Pistole (slot2). Beim Hineingreifen kurzer Puls, Griff-Taste (Flanke) zieht die Waffe. Zonen im Trackingraum relativ
    * zum Kopf (Kopf-Gierwinkel): x nach rechts, y hoch, z nach hinten.
    */
-  _holsters(p) {
+  _holsters(p, dt) {
+    const S = this.G.settings;
+    const input = this.G.input;
     const M = this.hands.main;
     const gp = M.gamepad;
     const gv = gp && gp.buttons && gp.buttons[1] ? gp.buttons[1].value || (gp.buttons[1].pressed ? 1 : 0) : 0;
     const was = this._mainGrip;
     this._mainGrip = gv > 0.6 ? true : gv < 0.3 ? false : was;
-    if (!p.alive || p.vehicle || !M.grip.ok || !this.head.ok || (this.menu && this.menu.open)) { this._zone = null; return; }
-    _v.set(0, 0, -1).applyQuaternion(this.head.quat);
-    let fx = _v.x, fz = _v.z;
-    const fl = Math.hypot(fx, fz) || 1;
-    fx /= fl; fz /= fl;
-    const dx = M.grip.pos.x - this.head.pos.x, dy = M.grip.pos.y - this.head.pos.y, dz = M.grip.pos.z - this.head.pos.z;
-    const right = dx * -fz + dz * fx, back = -(dx * fx + dz * fz);
-    const side = this.offSide === 'left' ? 1 : -1; // Waffenseite (+ = rechts)
+    const hold = S.get('vrGripHold') !== false;
+    const edge = this._mainGrip && !was;
+    if (!p.alive || p.vehicle || (this.menu && this.menu.open)) {
+      this._zone = null;
+      if (!hold || p.vehicle) this.armed = true;
+      if (input) input.xrBlock = this.armed || p.vehicle ? null : UNARMED_BLOCK;
+      return;
+    }
     let zone = null;
-    if (dy > -0.42 && back > 0.02 && Math.abs(right) < 0.5) zone = 'primary'; // über die Schulter auf den Rücken
-    else if (dy < -0.45 && dy > -1.05 && right * side > 0.1 && right * side < 0.5 && Math.abs(back) < 0.3) zone = 'secondary'; // Hüfte
+    if (M.grip.ok && this.head.ok) {
+      _v.set(0, 0, -1).applyQuaternion(this.head.quat);
+      let fx = _v.x, fz = _v.z;
+      const fl = Math.hypot(fx, fz) || 1;
+      fx /= fl; fz /= fl;
+      const dx = M.grip.pos.x - this.head.pos.x, dy = M.grip.pos.y - this.head.pos.y, dz = M.grip.pos.z - this.head.pos.z;
+      const right = dx * -fz + dz * fx, back = -(dx * fx + dz * fz);
+      const side = this.offSide === 'left' ? 1 : -1; // Waffenseite (+ = rechts)
+      if (dy > -0.42 && back > 0.02 && Math.abs(right) < 0.5) zone = 'primary'; // über die Schulter auf den Rücken
+      else if (dy < -0.45 && dy > -1.05 && right * side > 0.1 && right * side < 0.5 && Math.abs(back) < 0.3) zone = 'secondary'; // Hüfte
+    }
     if (zone !== this._zone) { this._zone = zone; if (zone) this._pulse(M, 0.15, 12); }
-    if (zone && this._mainGrip && !was && this.G.input && this.G.input.simulate) {
-      this.G.input.simulate.tap(zone === 'primary' ? 'slot1' : 'slot2');
+    if (edge && zone && input && input.simulate) {
+      input.simulate.tap(zone === 'primary' ? 'slot1' : 'slot2');
+      this._arm(true);
       this._pulse(M, 0.55, 35);
       this.G.events.emit('xr:holster', { zone });
+    } else if (edge && hold && !this.armed) {
+      this._arm(true); // irgendwo greifen = zuletzt benutzte Waffe
+      this._pulse(M, 0.35, 20);
     }
+    if (!hold) this.armed = true;
+    else if (this._mainGrip) this._relT = 0;
+    else if (this.armed) {
+      this._relT += dt;
+      if (this._relT >= HOLSTER_DELAY) { this._arm(false); this._pulse(M, 0.12, 10); }
+    }
+    if (input) input.xrBlock = this.armed ? null : UNARMED_BLOCK;
+  }
+
+  _arm(on) {
+    if (this.armed === on) return;
+    this.armed = on;
+    this._relT = 0;
+    this.G.events.emit('xr:armed', { armed: on });
   }
 
   /** Schulter (Welt) unter dem Kopf: side 1 = rechts, −1 = links (Unterarm-Löser der Ego-Arme). */
@@ -761,7 +805,8 @@ export class XRSystem {
     const gp = O.gamepad;
     const gv = gp && gp.buttons && gp.buttons[1] ? gp.buttons[1].value || (gp.buttons[1].pressed ? 1 : 0) : 0;
     const was = g.two;
-    if (!sup || !O.gripW.ok || !(p && p.alive) || (this.menu && this.menu.open)) g.two = false;
+    g.long = !!(sup && sup.steer);
+    if (!sup || !O.gripW.ok || !(p && p.alive) || !this.armed || (this.menu && this.menu.open)) g.two = false;
     else if (g.two) { if (gv < 0.3 || O.gripW.pos.distanceTo(g.pos) > sup.len + GRAB_HOLD) g.two = false; }
     else if (gv > 0.6) {
       _v.copy(sup.off).applyQuaternion(g.quat).add(g.pos); // Vorderschaft bei einhändiger Haltung
@@ -778,6 +823,15 @@ export class XRSystem {
         g.quat.multiply(_qa.invert());
       }
     }
+    // Langwaffe in einer Hand (vrTwoHand): Lauf hängt ≈ 3,5° durch und wackelt (≈ ±1,5°), Streuung ×4 (controller.js
+    // xrSpreadMul) – theoretisch möglich, aber enorm unpräzise
+    const oneHand = g.long && !g.two && this.armed && this.G.settings.get('vrTwoHand') !== false;
+    if (oneHand) {
+      const t = this.G.time.real || 0;
+      _eu.set(-0.06 - 0.022 * Math.sin(t * 1.7) - 0.011 * Math.sin(t * 4.3 + 1), 0.026 * Math.sin(t * 1.3 + 0.5) + 0.011 * Math.sin(t * 5.1), 0.035 * Math.sin(t * 0.9), 'YXZ');
+      g.quat.multiply(_qw.setFromEuler(_eu));
+    }
+    if (p) p.xrSpreadMul = oneHand ? ONE_HAND_SPREAD : g.two && !g.long ? 0.85 : 1;
     g.dir.set(0, 0, -1).applyQuaternion(g.quat);
   }
 
@@ -823,7 +877,7 @@ export class XRSystem {
     const d = this.dot;
     this._dotT = Math.max(0, this._dotT - dt);
     const vm = this.G.viewmodel;
-    const show = alive && this.G.settings.get('vrLaser') && this.hands.main.rayW.ok && !this.menu.open && !!(vm && vm.scene && vm.scene.visible !== false);
+    const show = alive && this.armed && this.G.settings.get('vrLaser') && this.hands.main.rayW.ok && !this.menu.open && !!(vm && vm.scene && vm.scene.visible !== false);
     d.visible = show;
     if (!show) return;
     // ≈ 0,3° scheinbarer Radius (Quest 3 ≈ 7 Pixel; beim Treffer doppelt), knapp vor der Fläche, zum Kopf gedreht
@@ -885,7 +939,10 @@ export class XRSystem {
     else this.menu.show('steuerung', this.eye, this.headQuat, page);
   }
 
-  /** Tastenerfassung: erst alles loslassen, dann zählt die erste neue Taste beider Hände (XR_CODES). */
+  /**
+   * Tastenerfassung: Tasten, die beim Start schon gedrückt sind (gehaltene Griff-Taste = Waffe, Abzug der Auswahl),
+   * zählen erst nach dem Loslassen; dann zählt die erste neu gedrückte Taste beider Hände (XR_CODES).
+   */
   _pollCapture(dt) {
     const c = this._capture;
     if (!c) return false;
@@ -898,9 +955,10 @@ export class XRSystem {
       for (const i of [0, 1, 3, 4, 5]) now.set(`Xr${tag}${i}`, !!(b[i] && (b[i].pressed || (i < 2 && b[i].value > 0.55))));
       if (tag === 'H') { const y = gp && gp.axes ? gp.axes[3] || 0 : 0; now.set('XrHUp', y < -0.7); now.set('XrHDown', y > 0.7); }
     }
-    if (!c.armed) { if (![...now.values()].some(Boolean)) c.armed = true; return true; }
+    if (!c.armed) { c.ignore = new Set([...now].filter(([, v]) => v).map(([k]) => k)); c.armed = true; this._capPrev = now; return true; }
+    for (const k of [...c.ignore]) if (!now.get(k)) c.ignore.delete(k);
     let code = null;
-    for (const [k, v] of now) if (v && !this._capPrev.get(k) && XR_CODES.includes(k)) { code = k; break; }
+    for (const [k, v] of now) if (v && !this._capPrev.get(k) && !c.ignore.has(k) && XR_CODES.includes(k)) { code = k; break; }
     this._capPrev = now;
     if (!code) return true;
     const S = this.G.settings;
@@ -1084,7 +1142,7 @@ export class XRSystem {
       supported: this.supported, enabled: this.enabled, presenting: this.presenting, ready: this.ready, space: this.space,
       rigYaw: this.rigYaw, calib: this.calib, stance: this._physStance, lean: p ? p.xrLean : 0, playerLean: p ? p.lean : 0,
       eye: this.eye.toArray(), aimDir: this.aimDir.toArray(), aimDist: this.aimDist,
-      hands: { main: this.hands.main.rayW.ok, off: this.hands.off.gripW.ok }, twoHand: this.gun.two, holster: this._zone,
+      hands: { main: this.hands.main.rayW.ok, off: this.hands.off.gripW.ok }, twoHand: this.gun.two, holster: this._zone, armed: this.armed,
       menu: this.menu && this.menu.open ? this.menu.kind : null, wristDraws: this.wrist ? this.wrist.draws : 0, wristAmmo: this.wrist ? this.wrist.lastAmmo : '',
       vignette: this.overlay.uniforms.uVig.value, fade: this.overlay.fade,
     };

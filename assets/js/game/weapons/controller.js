@@ -607,7 +607,9 @@ export class WeaponController {
     if (it.sliding) mult *= 1 + 0.25 * (1 - a);
     else if (it.crouching && sp < 0.35) mult *= 0.8 + 0.12 * a;
     if (it.sprinting) mult *= 1.35;
-    const target = base * mult + this._bloomHip * (1 - a) + this._bloomAds * a;
+    // VR (engine/xr): Langwaffe nur in einer Hand → Streuung ×4, Pistole beidhändig etwas ruhiger
+    const xrMul = Number.isFinite(this.actor && this.actor.xrSpreadMul) ? this.actor.xrSpreadMul : 1;
+    const target = (base * mult + this._bloomHip * (1 - a) + this._bloomAds * a) * xrMul;
     this.fireSpread = target;
     // HUD: schnell auf, sanft zurück
     this.spread += (target - this.spread) * damp(target > this.spread ? 40 : 12, dt);

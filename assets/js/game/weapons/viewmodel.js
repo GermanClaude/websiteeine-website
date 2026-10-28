@@ -935,11 +935,9 @@ export class ViewModel {
    * VR: freie Nebenhand am Controller (nicht am Vorderschaft) – Handgelenk hinter dem Griffpunkt, Finger entlang des
    * Controllers, Handrücken nach außen; Faust nach Griff-Taste/Abzug. → false ohne verfolgte Nebenhand.
    */
-  _xrOffTarget(xr, T) {
-    const O = xr.hands.off;
+  _xrOffTarget(xr, T, O = xr.hands.off, sx = xr.offSide === 'right' ? 1 : -1) {
     if (!O.gripW.ok) return false;
     const q = O.rayW.ok ? O.rayW.quat : O.gripW.quat;
-    const sx = xr.offSide === 'right' ? 1 : -1;
     const F = _v.set(0, -0.3, -1).normalize().applyQuaternion(q);
     const B = _v2.set(0.85 * sx, 0.5, 0.1).normalize().applyQuaternion(q);
     T.pos.copy(O.gripW.pos).addScaledVector(F, -0.075).addScaledVector(B, -0.012);
@@ -1059,6 +1057,13 @@ export class ViewModel {
     if (vr !== !!this._armsVr) {
       this._armsVr = vr;
       for (const A of [this.arms.right, this.arms.left]) { A.upper.visible = !vr; A.elbow.visible = !vr; A.align = vr ? 1 : 0.7; A.group.visible = true; }
+    }
+    // VR, Waffe im Holster (engine/xr armed = false, 28.10.): Waffe aus, Hand leer; beim Greifen kurz von unten ziehen
+    const unarmed = vr && this.G.xr && this.G.xr.armed === false;
+    if (unarmed !== !!this._xrUnarmed) {
+      this._xrUnarmed = unarmed;
+      this.gun.visible = !unarmed;
+      if (!unarmed && vr) this._equipT = Math.min(this._equipT, 0.5);
     }
     if (this._pending && (!this.cur || !this._lowering)) this._swapNow();
     if (!this.cur) return;
@@ -1405,6 +1410,17 @@ export class ViewModel {
     this._contactFrame = (this._contactFrame || 0) + 1;
     const xr = this._vrOn ? this.G.xr : null;
     if (xr && typeof xr.shoulderWorld === 'function') this._xrShoulders(xr);
+    // VR, Hand leer (Waffe im Holster): beide Hände frei an den Controllern
+    if (xr && xr.armed === false) {
+      const okR = this._xrOffTarget(xr, R, xr.hands.main, xr.offSide === 'right' ? -1 : 1);
+      const okL = this._xrOffTarget(xr, L);
+      this.arms.right.group.visible = okR;
+      this.arms.left.group.visible = okL;
+      if (okR) { this.arms.right.applyPose(R.pose); this.arms.right.solve(R.pos, R.quat); }
+      if (okL) { this.arms.left.applyPose(L.pose); this.arms.left.solve(L.pos, L.quat); }
+      return;
+    }
+    if (xr) this.arms.right.group.visible = true;
     // Rechte Hand: Pistolengriff (Messer: Faustgriff)
     const rStyle = h.action === 'knife' ? 'knife' : 'pistolGrip';
     this._anchorTarget(ud.rightHandGrip, rStyle, ud.rightHandGrip.userData, R, 1);

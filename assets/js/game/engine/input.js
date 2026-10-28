@@ -178,6 +178,8 @@ export class Input {
     this._codes = { kb: new Map(), pad: new Map(), xr: new Map() }; // gehaltene Codes → { src, acts }
     /** VR (engine/xr): Sticks der Controller – move (Nebenhand, wie move), turn (Haupthand x, −1 … 1); active während der Sitzung. */
     this.xr = { active: false, move: { x: 0, y: 0 }, turn: 0, stickY: 0 };
+    /** VR: gesperrte Aktionen, solange die Waffe im Holster ist (engine/xr setzt je Bild; null = keine). */
+    this.xrBlock = null;
     this._xrPrev = new Map();
     this._kbLayout = null;
     this._capture = null;
@@ -241,6 +243,7 @@ export class Input {
 
   down(action) {
     if (this.wheel.open && WHEEL_MASK.has(action)) return false;
+    if (this.xrBlock && this.xrBlock.has(action)) return false; // VR: Waffe im Holster (engine/xr)
     return this._isDown(action);
   }
   _isDown(action) {
@@ -248,7 +251,7 @@ export class Input {
     return h.key.has(action) || h.mouse.has(action) || h.pad.has(action) || h.touch.has(action) || h.auto.has(action) || h.sim.has(action) ||
       h.xr.has(action) || h.xrpose.has(action);
   }
-  pressed(action) { return this._pressed.has(action) && !(this.wheel.open && WHEEL_MASK.has(action)); }
+  pressed(action) { return this._pressed.has(action) && !(this.wheel.open && WHEEL_MASK.has(action)) && !(this.xrBlock && this.xrBlock.has(action)); }
   released(action) { return this._released.has(action); }
   /** Drücken dieses Bildes verbrauchen (geteilte Tasten: z. B. 4 = Platte statt Serie 2). */
   consume(action) { return this._pressed.delete(action); }

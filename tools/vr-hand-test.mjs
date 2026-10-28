@@ -3,7 +3,9 @@
 // Prüft: Handschuhe + Unterarme an beiden Controllern sichtbar; Nebenhand greift mit der Griff-Taste den Vorderschaft →
 // beidhändig, der Lauf zeigt vom Griff zur Nebenhand; Holster (Griff-Taste Haupthand an der Hüfte → Pistole, über der
 // Schulter → Hauptwaffe); echtes Gehen 1:1 (Headset 1 m vor → Körper 1 m vor); Steuerungs-Seite im VR-Menü mit
-// Tastenerfassung (taktische Granate auf linke Griff-Taste, dann zurücksetzen). Bilder unter tools/out/vr/hand-*.png.
+// Tastenerfassung (taktische Granate auf linke Griff-Taste, dann zurücksetzen). 28.10.: Waffe nur mit gehaltener
+// Griff-Taste (loslassen → Holster, Hand leer, kein Feuern), Gewehr einhändig unpräzise (Streuung ×4, Wackeln).
+// Bilder unter tools/out/vr/hand-*.png.
 //
 // Aufruf (Server: npx http-server -p 8765 -s -c-1 . bzw. NP_BASE):
 //   node tools/vr-hand-test.mjs [--map=hafen] [--mode=tdm] [--quality=low] [--size=800x450] [--base=http://127.0.0.1:8765/]
@@ -123,7 +125,9 @@ try {
     __iwer.controllers.right.quaternion.set(0, 0, 0, 1);
     __iwer.controllers.left.quaternion.set(0, 0, 0, 1);
   });
+  await G(() => __iwer.controllers.right.updateButtonValue('squeeze', 1)); // Waffe halten
   await frames(6);
+  if (await until('Waffe in der Hand (Griff gehalten)', () => window.__game.xr.armed === true, null, 30000)) pass('Waffe in der Hand (Griff gehalten)');
   const vis = await G(() => {
     const A = __game.viewmodel.rig.arms;
     return { rechts: A.right.group.visible && A.right.mesh.visible, links: A.left.group.visible && A.left.mesh.visible, oberarm: A.right.upper.visible, unterarm: A.right.fore.visible };
@@ -144,6 +148,14 @@ try {
   await shot('hand-vorn-faust');
   await G(() => { __iwer.controllers.left.updateButtonValue('squeeze', 0); __iwer.controllers.left.quaternion.set(0, 0, 0, 1); });
 
+  // Gewehr einhändig: Streuung ×4, Lauf weicht vom Controller ab (Durchhängen/Wackeln)
+  const one = await G(() => {
+    const xr = __game.xr, p = __game.player;
+    const ray = xr.hands.main.rayW.dir;
+    return { mul: p.xrSpreadMul, long: xr.gun.long, ab: Math.acos(Math.min(1, ray.dot(xr.gun.dir))) * 180 / Math.PI, streu: p.weapon.fireSpread };
+  });
+  if (one.long && one.mul >= 3.9 && one.ab > 1.5) pass('Gewehr einhändig unpräzise', `Streuung ×${one.mul}, Lauf ${one.ab.toFixed(1)}° neben dem Controller`);
+  else fail('Gewehr einhändig unpräzise', JSON.stringify(one));
   // Beidhändig: linke Hand an den Vorderschaft, Griff-Taste
   const sup = await G(() => { const s = __game.viewmodel.rig.xrSupport(); return s ? { off: s.off.toArray(), len: s.len, steer: s.steer } : null; });
   if (!sup) fail('Stützgriff', 'Waffe ohne Vorderschaft');
@@ -171,6 +183,8 @@ try {
         return { winkel: Math.acos(Math.min(1, want.dot(have))) * 180 / Math.PI, dir: xr.gun.dir.toArray(), links: __game.viewmodel.rig.arms.left.group.visible };
       });
       const turn = Math.acos(Math.min(1, d0[0] * r.dir[0] + d0[1] * r.dir[1] + d0[2] * r.dir[2])) * 180 / Math.PI;
+      const mul2 = await G(() => __game.player.xrSpreadMul);
+      if (mul2 === 1) pass('beidhändig: normale Streuung', `×${mul2}`); else fail('beidhändig: normale Streuung', `×${mul2}`);
       if (r.winkel < 3 && turn > 5) pass('Lauf folgt der Nebenhand', `Abweichung ${r.winkel.toFixed(1)}°, geschwenkt ${turn.toFixed(1)}°`);
       else fail('Lauf folgt der Nebenhand', `Abweichung ${r.winkel.toFixed(1)}°, geschwenkt ${turn.toFixed(1)}°`);
       await shot('hand-beidhaendig');
@@ -179,21 +193,35 @@ try {
     }
   }
 
-  // Holster: Hüfte → Pistole, Schulter → Hauptwaffe
+  // Griff loslassen → Waffe ins Holster: Hand leer, Feuern gesperrt
+  await G(() => __iwer.controllers.right.updateButtonValue('squeeze', 0));
+  if (await until('loslassen → Holster', () => window.__game.xr.armed === false, null, 30000)) {
+    await frames(2);
+    const st = await G(() => ({ waffe: __game.viewmodel.rig.gun.visible, rechts: __game.viewmodel.rig.arms.right.group.visible }));
+    if (!st.waffe && st.rechts) pass('loslassen → Holster', 'Waffe weg, rechte Hand leer sichtbar'); else fail('loslassen → Holster', JSON.stringify(st));
+    await shot('hand-leer');
+    await G(() => { window.__f2 = 0; window.__off2 = __game.events.on('weapon:fire', (e) => { if (e.actor === __game.player) window.__f2++; }); });
+    await G(() => __iwer.controllers.right.updateButtonValue('trigger', 1));
+    await frames(8);
+    await G(() => __iwer.controllers.right.updateButtonValue('trigger', 0));
+    const f2 = await G(() => { window.__off2(); return window.__f2; });
+    if (f2 === 0) pass('leere Hand schießt nicht'); else fail('leere Hand schießt nicht', `${f2} Schüsse`);
+  }
+  // Holster: Hüfte → Pistole, Schulter → Hauptwaffe (greifen und halten)
   const idx0 = await G(() => __game.player.weapon.index);
   const grab = async (dx, dy, dz) => {
+    await G(() => __iwer.controllers.right.updateButtonValue('squeeze', 0));
     await G(([x, y, z]) => { const h = __iwer.position; __iwer.controllers.right.position.set(h.x + x, h.y + y, h.z + z); }, [dx, dy, dz]);
     await frames(3);
     await G(() => __iwer.controllers.right.updateButtonValue('squeeze', 1));
     await frames(3);
-    await G(() => __iwer.controllers.right.updateButtonValue('squeeze', 0));
   };
   await grab(0.25, -0.75, 0.0);
-  if (await until('Holster Hüfte → Pistole', (i) => window.__game.player.weapon.index !== i, idx0, 60000)) pass('Holster Hüfte → Pistole', await G(() => `Platz ${__game.player.weapon.index}, ${__game.player.weapon.def && __game.player.weapon.def.name}`));
+  if (await until('Holster Hüfte → Pistole', (i) => window.__game.player.weapon.index !== i && window.__game.xr.armed, idx0, 60000)) pass('Holster Hüfte → Pistole', await G(() => `Platz ${__game.player.weapon.index}, ${__game.player.weapon.def && __game.player.weapon.def.name}`));
   await frames(10);
   const idx1 = await G(() => __game.player.weapon.index);
   await grab(0.12, 0.02, 0.18);
-  if (await until('Holster Rücken → Hauptwaffe', (i) => window.__game.player.weapon.index !== i, idx1, 60000)) pass('Holster Rücken → Hauptwaffe', await G(() => `Platz ${__game.player.weapon.index}, ${__game.player.weapon.def && __game.player.weapon.def.name}`));
+  if (await until('Holster Rücken → Hauptwaffe', (i) => window.__game.player.weapon.index !== i && window.__game.xr.armed, idx1, 60000)) pass('Holster Rücken → Hauptwaffe', await G(() => `Platz ${__game.player.weapon.index}, ${__game.player.weapon.def && __game.player.weapon.def.name}`));
   await G(() => { const h = __iwer.position; __iwer.controllers.right.position.set(h.x + 0.18, h.y - 0.3, h.z - 0.35); });
 
   // Echtes Gehen 1:1: Headset in 10-cm-Schritten 1 m nach vorn (Trackingraum −z)

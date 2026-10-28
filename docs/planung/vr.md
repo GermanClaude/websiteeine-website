@@ -41,6 +41,12 @@ Ohne VR-fähigen Browser zeigt der Abschnitt „VR (Beta)“ nur einen Hinweis s
   über Kopfneigen. Aus: seitlicher Kopfversatz lehnt (wie vorher).
 - „Waffe ruhiger halten“ (Standard an): adaptive Glättung der Laufdrehung – in Ruhe stark, beim Schwenken kaum.
 - Griff-Tasten gehören damit den Händen: Zielen über Anheben ans Auge, taktische Granate standardmäßig frei.
+- 28.10.: **Griff halten = Waffe halten** („Waffe nur halten, solange die Griff-Taste gedrückt ist“, Standard an):
+  loslassen → nach 0,25 s ins Holster (Waffe weg, Hand leer; Feuern, Nachladen, Anlegen, Nahkampf, Wechsel gesperrt),
+  Griff an Rücken/Hüfte zieht die jeweilige Waffe, Griff irgendwo sonst die zuletzt benutzte.
+- 28.10.: **Langwaffen beidhändig** („Langwaffen brauchen beide Hände“, Standard an): einhändig hängt der Lauf
+  ≈ 3,5° durch und wackelt (≈ ±1,5°), Streuung ×4 (controller.js `xrSpreadMul`), Anlegen ans Auge nur beidhändig.
+  Pistole beidhändig: Streuung ×0,85.
 
 H = Haupthand (Waffe; Einstellung „Haupthand“, Standard rechts), N = Nebenhand.
 

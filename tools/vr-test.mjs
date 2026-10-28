@@ -113,7 +113,8 @@ try {
   const q2d = await G(() => __game.renderer.quality);
 
   // VR-Einstellung, Emulator meldet Quest 3
-  await G((vrq) => { __game.player.godMode = true; __game.settings.set('vrEnabled', true); if (vrq) __game.settings.set('vrQuality', vrq); }, opt.vrq ? String(opt.vrq) : null);
+  // Waffe ohne Griff-Taste halten (das Greifen prüft tools/vr-hand-test.mjs)
+  await G((vrq) => { __game.player.godMode = true; __game.settings.set('vrEnabled', true); __game.settings.set('vrGripHold', false); if (vrq) __game.settings.set('vrQuality', vrq); }, opt.vrq ? String(opt.vrq) : null);
   if (await until('VR unterstützt', () => window.__game.xr && window.__game.xr.supported === true, null, 30000)) pass('VR unterstützt', 'navigator.xr meldet immersive-vr (IWER Quest 3)');
   if (await until('Knopf „VR starten“', () => { const b = document.querySelector('.xr-start'); return b && !b.hidden; }, null, 30000)) pass('Knopf „VR starten“');
 
